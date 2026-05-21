@@ -1,10 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import permissions, serializers
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchHeadline
+from rest_framework import permissions
+from django.contrib.postgres.search import SearchQuery, SearchRank
 from django.db.models import Q, F
 from apps.records.models import Record
 from apps.records.serializers import RecordListSerializer
+from .models import NoResultSearch
 
 
 class UnifiedSearchView(APIView):
@@ -15,7 +16,6 @@ class UnifiedSearchView(APIView):
         if not query:
             return Response({'results': [], 'count': 0, 'query': ''})
 
-        # Log search
         SearchQuery_pg = SearchQuery(query, config='english')
 
         qs = Record.objects.filter(
@@ -28,7 +28,6 @@ class UnifiedSearchView(APIView):
             Q(originating_ministry__icontains=query)
         )
 
-        # Apply filters
         doc_type = request.query_params.get('document_type')
         ministry = request.query_params.get('ministry')
         series = request.query_params.get('record_series')
@@ -53,32 +52,18 @@ class UnifiedSearchView(APIView):
             rank=SearchRank(F('search_vector'), SearchQuery_pg)
         ).order_by('-rank', '-created_at').distinct()[:50]
 
-        # Log no-result queries for analytics
         results = RecordListSerializer(qs, many=True).data
+
         if not results:
-            NoResultSearch.objects.get_or_create(query=query.lower())
+            obj, created = NoResultSearch.objects.get_or_create(query=query.lower())
+            if not created:
+                NoResultSearch.objects.filter(pk=obj.pk).update(count=F('count') + 1)
 
         return Response({
             'results': results,
             'count': len(results),
             'query': query,
         })
-
-
-class SavedSearch(object):
-    pass
-
-
-from django.db import models as dm
-
-
-class NoResultSearch(dm.Model):
-    query = dm.CharField(max_length=500, unique=True)
-    count = dm.PositiveIntegerField(default=1)
-    last_searched = dm.DateTimeField(auto_now=True)
-
-    class Meta:
-        app_label = 'search'
 
 
 class SearchAnalyticsView(APIView):
