@@ -1,11 +1,16 @@
 import {
   LayoutDashboard, FolderOpen, FileText, GitBranch, Mail,
-  Search, Shield, Users, BarChart3, Settings, Bell,
-  Lock, Archive, Trash2, Eye, Share2, ChevronRight,
+  Search, Shield, Users, BarChart3, Settings,
+  Lock, Archive, Trash2, Eye, Share2,
   ClipboardList, AlertTriangle, CheckCircle, Key,
-  BookOpen, FileCheck, Activity, Database, Link,
-  MessageSquare, Star, Clock, LogIn
+  BookOpen, Activity, Database, Link, Clock,
 } from 'lucide-react'
+
+// Role sets — mirrors DriveSidebar and router guards
+const NO_RO   = ['reviewer', 'records_officer', 'director', 'commissioner', 'administrator']
+const OFFICER = ['records_officer', 'director', 'commissioner', 'administrator']
+const DIRPLUS = ['director', 'commissioner', 'administrator']
+const ADMIN   = ['administrator']
 
 const menuItems = [
   {
@@ -68,20 +73,19 @@ const menuItems = [
   {
     group: 'Analytics',
     groupIcon: BarChart3,
+    roles: DIRPLUS,
     items: [
-      { label: 'Dashboard', icon: Activity, path: '/analytics' },
-      { label: 'Audit Trail', icon: Eye, path: '/analytics/audit' },
-      { label: 'Compliance Report', icon: FileCheck, path: '/analytics/compliance' },
+      { label: 'Dashboard',  icon: Activity, path: '/analytics',       roles: DIRPLUS },
+      { label: 'Audit log',  icon: Eye,      path: '/analytics/audit', roles: DIRPLUS },
     ]
   },
   {
     group: 'Administration',
     groupIcon: Settings,
+    roles: ADMIN,
     items: [
-      { label: 'Users', icon: Users, path: '/admin/users' },
-      { label: 'Departments', icon: Database, path: '/admin/departments' },
-      { label: 'API Keys', icon: Key, path: '/admin/api-keys' },
-      { label: 'System Health', icon: Activity, path: '/admin/health' },
+      { label: 'Users',          icon: Users,     path: '/admin/users',   roles: ADMIN },
+      { label: 'System Health',  icon: Activity,  path: '/admin/health',  roles: ADMIN },
     ]
   },
 ]
@@ -93,6 +97,20 @@ export function getAllPaths(items) {
     if (item.children) item.children.forEach(c => paths.push(c.path))
   })
   return paths
+}
+
+// Prefix-aware active check: /admin/form-types/3/builder matches /admin/form-types
+export function isGroupActive(paths, pathname) {
+  return paths.some(p => {
+    if (p === '/') return pathname === '/'
+    return pathname === p || pathname.startsWith(p + '/')
+  })
+}
+
+// Prefix-aware single-path match (for NavItem child accordion)
+export function isPathActive(path, pathname) {
+  if (path === '/') return pathname === '/'
+  return pathname === path || pathname.startsWith(path + '/')
 }
 
 export function flattenItems(items) {

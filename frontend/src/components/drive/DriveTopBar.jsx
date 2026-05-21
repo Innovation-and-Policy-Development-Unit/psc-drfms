@@ -2,16 +2,19 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
+import { useNotifications } from '../../context/NotificationContext'
 import { notificationsApi } from '../../api'
 import Logo from '../shared/Logo'
 import clsx from 'clsx'
 import {
-  Search, Upload, Bell, Sun, Moon, Menu, LogOut, ChevronDown
+  Search, Upload, Bell, Sun, Moon, Menu, LogOut, ChevronDown,
+  Inbox, HelpCircle, Shield,
 } from 'lucide-react'
 
 export default function DriveTopBar({ onMenuClick, onSearch }) {
   const { user, logout } = useAuth()
   const { isDark, toggleDark } = useTheme()
+  const { unreadCount = 0 } = useNotifications() || {}
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [userOpen, setUserOpen] = useState(false)
@@ -30,6 +33,7 @@ export default function DriveTopBar({ onMenuClick, onSearch }) {
   }, [])
 
   useEffect(() => {
+    if (!notifOpen) return
     notificationsApi.list({ unread: 'true', page_size: 10 })
       .then(({ data }) => setNotifications((data.results || data).slice(0, 10)))
       .catch(() => {})
@@ -51,8 +55,6 @@ export default function DriveTopBar({ onMenuClick, onSearch }) {
     await logout()
     navigate('/auth/login')
   }
-
-  const unreadCount = notifications.filter(n => !n.is_read).length
 
   const openNotif = (n) => {
     if (!n.is_read) notificationsApi.markRead(n.id).catch(() => {})
@@ -126,7 +128,13 @@ export default function DriveTopBar({ onMenuClick, onSearch }) {
           {notifOpen && (
             <div className="absolute end-0 top-full mt-1 w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-50">
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                <span className="font-semibold text-sm text-slate-900 dark:text-white">Notifications</span>
+                <button
+                  type="button"
+                  onClick={() => { setNotifOpen(false); navigate('/inbox') }}
+                  className="font-semibold text-sm text-slate-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                >
+                  Inbox
+                </button>
                 <button
                   type="button"
                   onClick={() => notificationsApi.markAllRead().then(() => setNotifications([]))}
@@ -153,6 +161,15 @@ export default function DriveTopBar({ onMenuClick, onSearch }) {
                   </button>
                 ))}
               </div>
+              <div className="p-2 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => { setNotifOpen(false); navigate('/inbox') }}
+                  className="w-full text-center text-xs text-primary-600 dark:text-primary-400 hover:underline py-1.5 font-medium"
+                >
+                  View all in Inbox
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -174,16 +191,51 @@ export default function DriveTopBar({ onMenuClick, onSearch }) {
                 <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                   {user?.full_name || user?.email}
                 </p>
-                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                <p className="text-xs text-slate-500 truncate capitalize">
+                  {user?.role?.replace(/_/g, ' ')} · {user?.email}
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                <LogOut size={16} />
-                Sign out
-              </button>
+              <div className="py-1">
+                <button
+                  type="button"
+                  onClick={() => { setUserOpen(false); navigate('/inbox') }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                >
+                  <Inbox size={15} />
+                  Inbox
+                  {unreadCount > 0 && (
+                    <span className="ms-auto text-[10px] font-bold bg-primary-500 text-white rounded-full px-1.5 py-0.5">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserOpen(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                >
+                  <Shield size={15} />
+                  Security / 2FA
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserOpen(false)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                >
+                  <HelpCircle size={15} />
+                  Help
+                </button>
+              </div>
+              <div className="py-1 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <LogOut size={16} />
+                  Sign out
+                </button>
+              </div>
             </div>
           )}
         </div>

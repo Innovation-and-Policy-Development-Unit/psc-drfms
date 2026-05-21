@@ -1,30 +1,32 @@
 import { useState, useRef, useEffect, useCallback, Fragment, memo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
+import { useAuth } from '../../context/AuthContext'
+import { notificationsApi } from '../../api'
 import clsx from 'clsx'
 import {
   Menu, Search, Bell, Settings, Sun, Moon, ChevronDown,
-  User, LogOut, CreditCard, HelpCircle, Shield, X,
-  CheckCircle2, AlertCircle, Info, Package, ChevronRight
+  User, LogOut, HelpCircle, Shield, X, ChevronRight,
+  GitBranch, FileText, AlertCircle, Info,
 } from 'lucide-react'
 import Logo from '../shared/Logo'
 
-const notifications = [
-  { id: 1, type: 'success', title: 'Order Completed', message: 'Order #1234 has been fulfilled', time: '2 min ago', read: false },
-  { id: 2, type: 'info', title: 'New User Registered', message: 'Sarah Johnson joined the platform', time: '15 min ago', read: false },
-  { id: 3, type: 'warning', title: 'Low Stock Alert', message: 'Product "Wireless Mouse" is running low', time: '1 hr ago', read: true },
-  { id: 4, type: 'error', title: 'Payment Failed', message: 'Transaction #5678 was declined', time: '3 hr ago', read: true },
-  { id: 5, type: 'info', title: 'System Update', message: 'Dashboard updated to v2.1.0', time: '1 day ago', read: true },
-]
-
 const breadcrumbMap = {
   '/': ['Dashboard'],
-  '/records': ['Records', 'All Records'],
-  '/records/upload': ['Records', 'Upload'],
-  '/records/series': ['Records', 'Series'],
+  '/browse': ['Documents', 'All files'],
+  '/upload': ['Documents', 'Upload'],
+  '/starred': ['Documents', 'Starred'],
+  '/shared-with-me': ['Documents', 'Shared with me'],
+  '/recent': ['Documents', 'Recent'],
+  '/search': ['Search'],
+  '/inbox': ['Inbox'],
   '/workflows': ['Workflows'],
   '/workflows/my-tasks': ['Workflows', 'My Tasks'],
-  '/search': ['Search'],
+  '/workflows/templates': ['Workflows', 'Templates'],
+  '/submissions': ['Submissions', 'All'],
+  '/submissions/new': ['Submissions', 'New'],
+  '/submissions/assigned': ['Submissions', 'My assigned'],
+  '/submissions/overdue': ['Submissions', 'Overdue / SLA'],
   '/compliance/legal-holds': ['Compliance', 'Legal Holds'],
   '/compliance/destruction': ['Compliance', 'Destruction'],
   '/compliance/retention': ['Compliance', 'Retention'],
@@ -32,26 +34,22 @@ const breadcrumbMap = {
   '/correspondence': ['Correspondence'],
   '/sharing': ['Sharing'],
   '/analytics': ['Analytics'],
-  '/analytics/audit': ['Analytics', 'Audit Trail'],
-  '/analytics/compliance': ['Analytics', 'Compliance Report'],
+  '/analytics/audit': ['Analytics', 'Audit log'],
   '/admin/users': ['Administration', 'Users'],
   '/admin/health': ['Administration', 'System Health'],
-  '/admin/departments': ['Administration', 'Departments'],
-  '/admin/api-keys': ['Administration', 'API Keys'],
 }
 
-function NotificationIcon({ type }) {
-  if (type === 'success') return <CheckCircle2 size={16} className="text-emerald-500" />
-  if (type === 'warning') return <AlertCircle size={16} className="text-amber-500" />
-  if (type === 'error') return <AlertCircle size={16} className="text-red-500" />
-  return <Info size={16} className="text-cyan-500" />
+function typeIcon(type) {
+  if (type === 'workflow') return <GitBranch size={15} className="text-violet-500" />
+  if (type === 'record')   return <FileText size={15} className="text-sky-500" />
+  if (type === 'alert')    return <AlertCircle size={15} className="text-red-500" />
+  return <Info size={15} className="text-primary-500" />
 }
 
-const UserMenuItem = memo(function UserMenuItem({ Icon, label, path, onClick }) {
-  const handleClick = useCallback(() => onClick(path), [onClick, path])
+const UserMenuItem = memo(function UserMenuItem({ Icon, label, onClick }) {
   return (
     <button
-      onClick={handleClick}
+      onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
     >
       <Icon size={16} />
@@ -62,44 +60,64 @@ const UserMenuItem = memo(function UserMenuItem({ Icon, label, path, onClick }) 
 
 export default function Header({ onMenuClick }) {
   const { isDark, toggleDark, openSettingsPanel } = useTheme()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [notifOpen, setNotifOpen] = useState(false)
-  const [userOpen, setUserOpen] = useState(false)
+  const [userOpen, setUserOpen]   = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [notifications, setNotifications] = useState([])
   const notifRef = useRef(null)
-  const userRef = useRef(null)
-  const location = useLocation()
-  const navigate = useNavigate()
+  const userRef  = useRef(null)
 
   const breadcrumbs = breadcrumbMap[location.pathname] || ['Dashboard']
-  const unreadCount = notifications.filter(n => !n.read).length
+
+  // Fetch real notifications when dropdown opens
+  useEffect(() => {
+    if (!notifOpen) return
+    notificationsApi.list({ unread: 'true', page_size: 8 })
+      .then(({ data }) => setNotifications(Array.isArray(data) ? data : (data.results ?? [])))
+      .catch(() => {})
+  }, [notifOpen])
 
   useEffect(() => {
-    function handleClickOutside(e) {
+    const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false)
-      if (userRef.current && !userRef.current.contains(e.target)) setUserOpen(false)
+      if (userRef.current  && !userRef.current.contains(e.target))  setUserOpen(false)
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const handleSearchChange = useCallback(e => setSearchQuery(e.target.value), [])
-  const handleSearchClose = useCallback(() => { setSearchOpen(false); setSearchQuery('') }, [])
-  const handleSearchOpen = useCallback(() => setSearchOpen(true), [])
-  const handleNotifToggle = useCallback(() => setNotifOpen(o => !o), [])
-  const handleUserToggle = useCallback(() => setUserOpen(o => !o), [])
-  const handleSignOut = useCallback(() => navigate('/auth/login'), [navigate])
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
-  const userMenuItems = [
-    { icon: User, label: 'My Profile', path: '/pages/account' },
-    { icon: CreditCard, label: 'Billing', path: '/pages/pricing' },
-    { icon: Shield, label: 'Security', path: '/pages/account' },
-    { icon: HelpCircle, label: 'Help Center', path: '/pages/faq' },
-  ]
-  const handleUserMenuClick = useCallback((path) => {
-    navigate(path)
+  const openNotif = (n) => {
+    if (!n.is_read) notificationsApi.markRead(n.id).catch(() => {})
+    setNotifOpen(false)
+    const url = n.related_url || (n.related_record ? `/document/${n.related_record}` : null)
+    if (url) navigate(url.startsWith('/') ? url : `/${url}`)
+  }
+
+  const handleSignOut = useCallback(async () => {
     setUserOpen(false)
-  }, [navigate])
+    await logout()
+    navigate('/auth/login')
+  }, [logout, navigate])
+
+  const initials = user
+    ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'
+    : 'U'
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchOpen(false)
+      setSearchQuery('')
+    }
+  }
 
   return (
     <header className="fixed top-0 end-0 start-0 h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 z-30 flex items-center px-4 gap-3">
@@ -145,25 +163,26 @@ export default function Header({ onMenuClick }) {
       {/* Search */}
       <div className="relative">
         {searchOpen ? (
-          <div className="flex items-center gap-2 animate-fade-in">
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 animate-fade-in">
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search records…"
               autoFocus
               value={searchQuery}
-              onChange={handleSearchChange}
+              onChange={e => setSearchQuery(e.target.value)}
               className="w-48 sm:w-64 input text-sm"
             />
             <button
-              onClick={handleSearchClose}
+              type="button"
+              onClick={() => { setSearchOpen(false); setSearchQuery('') }}
               className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
             >
               <X size={16} />
             </button>
-          </div>
+          </form>
         ) : (
           <button
-            onClick={handleSearchOpen}
+            onClick={() => setSearchOpen(true)}
             className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
           >
             <Search size={20} />
@@ -171,25 +190,25 @@ export default function Header({ onMenuClick }) {
         )}
       </div>
 
-      {/* Dark mode toggle */}
+      {/* Dark mode */}
       <button
         onClick={toggleDark}
         className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
-        title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        title={isDark ? 'Light mode' : 'Dark mode'}
       >
         {isDark ? <Sun size={20} /> : <Moon size={20} />}
       </button>
 
-      {/* Notifications */}
+      {/* Notifications bell */}
       <div className="relative" ref={notifRef}>
         <button
-          onClick={handleNotifToggle}
+          onClick={() => setNotifOpen(o => !o)}
           className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
         >
           <Bell size={20} />
           {unreadCount > 0 && (
             <span className="absolute top-1 end-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {unreadCount}
+              {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </button>
@@ -197,44 +216,63 @@ export default function Header({ onMenuClick }) {
         {notifOpen && (
           <div className="absolute end-0 top-full mt-2 w-80 card shadow-card-lg animate-fade-in z-50">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200">Notifications</h3>
-              <span className="badge badge-primary">{unreadCount} new</span>
+              <button
+                type="button"
+                onClick={() => { setNotifOpen(false); navigate('/inbox') }}
+                className="font-semibold text-slate-800 dark:text-slate-200 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                Inbox
+              </button>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => notificationsApi.markAllRead().then(() => setNotifications([]))}
+                  className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
             </div>
+
             <div className="max-h-72 overflow-y-auto custom-scrollbar">
-              {notifications.map(notif => (
-                <div
-                  key={notif.id}
+              {notifications.length === 0 ? (
+                <p className="p-6 text-sm text-slate-400 text-center">No unread notifications</p>
+              ) : notifications.map(n => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => openNotif(n)}
                   className={clsx(
-                    'flex items-start gap-3 px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors',
-                    !notif.read && 'bg-primary-50/30 dark:bg-primary-900/10'
+                    'w-full text-start flex items-start gap-3 px-4 py-3 border-b border-slate-50 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors',
+                    !n.is_read && 'bg-primary-50/30 dark:bg-primary-900/10'
                   )}
                 >
-                  <div className="mt-0.5 shrink-0">
-                    <NotificationIcon type={notif.type} />
-                  </div>
+                  <div className="mt-0.5 shrink-0">{typeIcon(n.notification_type)}</div>
                   <div className="flex-1 min-w-0">
-                    <p className={clsx('text-sm font-medium truncate', !notif.read ? 'text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400')}>
-                      {notif.title}
+                    <p className={clsx('text-sm font-medium truncate', !n.is_read ? 'text-slate-800 dark:text-slate-200' : 'text-slate-600 dark:text-slate-400')}>
+                      {n.title}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{notif.message}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{notif.time}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{n.message}</p>
                   </div>
-                  {!notif.read && (
-                    <span className="w-2 h-2 bg-primary-500 rounded-full mt-1 shrink-0" />
-                  )}
-                </div>
+                  {!n.is_read && <span className="w-2 h-2 bg-primary-500 rounded-full mt-1.5 shrink-0" />}
+                </button>
               ))}
             </div>
-            <div className="p-3 border-t border-slate-100 dark:border-slate-700">
-              <button className="w-full text-center text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 font-medium py-1">
-                View all notifications
+
+            <div className="p-2 border-t border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => { setNotifOpen(false); navigate('/inbox') }}
+                className="w-full text-center text-xs text-primary-600 dark:text-primary-400 hover:underline py-1.5 font-medium"
+              >
+                View all in Inbox
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Settings panel trigger */}
+      {/* Settings */}
       <button
         onClick={openSettingsPanel}
         className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
@@ -246,15 +284,19 @@ export default function Header({ onMenuClick }) {
       {/* User dropdown */}
       <div className="relative" ref={userRef}>
         <button
-          onClick={handleUserToggle}
+          onClick={() => setUserOpen(o => !o)}
           className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center">
-            <span className="text-white font-semibold text-xs">JD</span>
+          <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+            <span className="text-white font-semibold text-xs">{initials}</span>
           </div>
           <div className="hidden sm:block text-start">
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-none">John Doe</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Admin</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-none truncate max-w-[120px]">
+              {user?.full_name || user?.email || 'User'}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">
+              {user?.role?.replace('_', ' ') || ''}
+            </p>
           </div>
           <ChevronDown size={14} className="text-slate-400 hidden sm:block" />
         </button>
@@ -262,19 +304,15 @@ export default function Header({ onMenuClick }) {
         {userOpen && (
           <div className="absolute end-0 top-full mt-2 w-56 card shadow-card-lg animate-fade-in z-50">
             <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-              <p className="font-semibold text-slate-800 dark:text-slate-200">John Doe</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">john@liner.com</p>
+              <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                {user?.full_name || user?.email}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{user?.email}</p>
             </div>
             <div className="py-2">
-              {userMenuItems.map(({ icon: Icon, label, path }) => (
-                <UserMenuItem
-                  key={label}
-                  Icon={Icon}
-                  label={label}
-                  path={path}
-                  onClick={handleUserMenuClick}
-                />
-              ))}
+              <UserMenuItem Icon={User}     label="My Profile"   onClick={() => { setUserOpen(false); navigate('/') }} />
+              <UserMenuItem Icon={Shield}   label="Security"     onClick={() => { setUserOpen(false); navigate('/') }} />
+              <UserMenuItem Icon={HelpCircle} label="Help"       onClick={() => { setUserOpen(false) }} />
             </div>
             <div className="py-2 border-t border-slate-100 dark:border-slate-700">
               <button
@@ -282,7 +320,7 @@ export default function Header({ onMenuClick }) {
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <LogOut size={16} />
-                Sign Out
+                Sign out
               </button>
             </div>
           </div>

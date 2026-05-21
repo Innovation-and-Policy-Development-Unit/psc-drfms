@@ -1,9 +1,11 @@
 import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import DriveLayout from '../components/layout/DriveLayout'
 import ProtectedRoute from '../pages/auth/ProtectedRoute'
+import RequireRole from '../pages/auth/RequireRole'
 
 import Login from '../pages/auth/Login'
 import TwoFactor from '../pages/auth/TwoFactor'
+import Unauthorized from '../pages/auth/Unauthorized'
 
 import DocumentsHome from '../pages/documents/DocumentsHome'
 import BrowseFiles from '../pages/documents/BrowseFiles'
@@ -25,10 +27,21 @@ import OverdueRecords from '../pages/compliance/OverdueRecords'
 import CorrespondenceList from '../pages/correspondence/CorrespondenceList'
 import SharedLinks from '../pages/sharing/SharedLinks'
 import SharedDocument from '../pages/sharing/SharedDocument'
+import Inbox from '../pages/notifications/Inbox'
+import AllSubmissions from '../pages/submissions/AllSubmissions'
+import NewSubmission from '../pages/submissions/NewSubmission'
+import AssignedSubmissions from '../pages/submissions/AssignedSubmissions'
+import OverdueSLA from '../pages/submissions/OverdueSLA'
 import AnalyticsDashboard from '../pages/analytics/AnalyticsDashboard'
 import AuditTrail from '../pages/analytics/AuditTrail'
 import UserManagement from '../pages/admin/UserManagement'
 import SystemHealth from '../pages/admin/SystemHealth'
+
+// Role sets — mirrors DriveSidebar and backend permission classes
+const NO_RO   = ['reviewer', 'records_officer', 'director', 'commissioner', 'administrator']
+const OFFICER = ['records_officer', 'director', 'commissioner', 'administrator']
+const DIRPLUS = ['director', 'commissioner', 'administrator']
+const ADMIN   = ['administrator']
 
 export default function AppRouter() {
   return (
@@ -39,31 +52,54 @@ export default function AppRouter() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<DriveLayout />}>
+
+          {/* ── All authenticated roles ── */}
           <Route path="/" element={<DocumentsHome />} />
-          <Route path="/browse" element={<BrowseFiles />} />
-          <Route path="/starred" element={<StarredFiles />} />
-          <Route path="/shared-with-me" element={<SharedWithMe />} />
-          <Route path="/recent" element={<RecentFiles />} />
-          <Route path="/upload" element={<RecordUpload />} />
-          <Route path="/document/:id" element={<RecordDetail />} />
-
           <Route path="/search" element={<SearchResults />} />
-          <Route path="/workflows" element={<WorkflowList />} />
-          <Route path="/workflows/my-tasks" element={<MyTasks />} />
-          <Route path="/workflows/templates" element={<WorkflowTemplates />} />
-          <Route path="/workflows/:id" element={<WorkflowDetail />} />
-          <Route path="/compliance/legal-holds" element={<LegalHolds />} />
-          <Route path="/compliance/destruction" element={<DestructionScheduling />} />
-          <Route path="/compliance/retention" element={<RetentionSchedule />} />
-          <Route path="/compliance/overdue" element={<OverdueRecords />} />
-          <Route path="/correspondence" element={<CorrespondenceList />} />
-          <Route path="/sharing" element={<SharedLinks />} />
-          <Route path="/analytics" element={<AnalyticsDashboard />} />
-          <Route path="/analytics/audit" element={<AuditTrail />} />
-          <Route path="/admin/users" element={<UserManagement />} />
-          <Route path="/admin/health" element={<SystemHealth />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Legacy paths */}
+          {/* ── Reviewer and above ── */}
+          <Route element={<RequireRole roles={NO_RO} />}>
+            <Route path="/submissions/assigned" element={<AssignedSubmissions />} />
+            <Route path="/browse" element={<BrowseFiles />} />
+            <Route path="/starred" element={<StarredFiles />} />
+            <Route path="/shared-with-me" element={<SharedWithMe />} />
+            <Route path="/recent" element={<RecentFiles />} />
+            <Route path="/document/:id" element={<RecordDetail />} />
+            <Route path="/workflows/my-tasks" element={<MyTasks />} />
+            <Route path="/workflows/:id" element={<WorkflowDetail />} />
+          </Route>
+
+          {/* ── Records officer and above ── */}
+          <Route element={<RequireRole roles={OFFICER} />}>
+            <Route path="/submissions" element={<AllSubmissions />} />
+            <Route path="/submissions/new" element={<NewSubmission />} />
+            <Route path="/submissions/overdue" element={<OverdueSLA />} />
+            <Route path="/upload" element={<RecordUpload />} />
+            <Route path="/workflows" element={<WorkflowList />} />
+            <Route path="/workflows/templates" element={<WorkflowTemplates />} />
+            <Route path="/compliance/legal-holds" element={<LegalHolds />} />
+            <Route path="/compliance/destruction" element={<DestructionScheduling />} />
+            <Route path="/compliance/retention" element={<RetentionSchedule />} />
+            <Route path="/compliance/overdue" element={<OverdueRecords />} />
+            <Route path="/correspondence" element={<CorrespondenceList />} />
+            <Route path="/sharing" element={<SharedLinks />} />
+          </Route>
+
+          {/* ── Director / Commissioner / Administrator ── */}
+          <Route element={<RequireRole roles={DIRPLUS} />}>
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/analytics/audit" element={<AuditTrail />} />
+          </Route>
+
+          {/* ── Administrator only ── */}
+          <Route element={<RequireRole roles={ADMIN} />}>
+            <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/health" element={<SystemHealth />} />
+          </Route>
+
+          {/* Legacy redirects */}
           <Route path="/records" element={<Navigate to="/browse" replace />} />
           <Route path="/records/upload" element={<Navigate to="/upload" replace />} />
           <Route path="/records/:id" element={<LegacyRecordRedirect />} />

@@ -2,13 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
+import { useAuth } from '../../context/AuthContext'
 import clsx from 'clsx'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import menuItems, { getAllPaths, flattenItems } from '../../data/menuItems'
+import menuItems, { getAllPaths, flattenItems, isGroupActive, isPathActive } from '../../data/menuItems'
 import Logo from '../shared/Logo'
 
 
-// Collapsed sidebar: one icon per group with flyout dropdown
+// Collapsed sidebar: one icon per group with tap/click flyout (portal)
 function CollapsedGroupItem({ group }) {
   const location = useLocation()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -17,42 +18,49 @@ function CollapsedGroupItem({ group }) {
 
   const GroupIcon = group.groupIcon
   const allPaths = getAllPaths(group.items)
-  const anyActive = allPaths.includes(location.pathname)
-
+  const anyActive = isGroupActive(allPaths, location.pathname)
   const flatItems = flattenItems(group.items)
 
+  const positionDropdown = () => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const dropdownHeight = flatItems.length * 38 + 56
+    const spaceBelow = window.innerHeight - rect.top
+    const isRtl = document.documentElement.dir === 'rtl'
+    const style = { position: 'fixed', zIndex: 9999 }
+    if (isRtl) {
+      style.right = `${window.innerWidth - rect.left + 4}px`
+    } else {
+      style.left = `${rect.right + 4}px`
+    }
+    const maxH = window.innerHeight - 16
+    if (spaceBelow >= dropdownHeight) {
+      style.top = `${rect.top}px`
+      style.maxHeight = `${window.innerHeight - rect.top - 8}px`
+    } else if (rect.bottom >= dropdownHeight) {
+      style.bottom = `${window.innerHeight - rect.bottom}px`
+      style.maxHeight = `${rect.bottom - 8}px`
+    } else {
+      style.top = '8px'
+      style.maxHeight = `${maxH}px`
+    }
+    setDropdownStyle(style)
+  }
+
+  const open = () => { positionDropdown(); setDropdownOpen(true) }
+  const close = () => setDropdownOpen(false)
+
+  // Close on outside click
   useEffect(() => {
-    if (dropdownOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect()
-      const dropdownHeight = flatItems.length * 38 + 56
-      const spaceBelow = window.innerHeight - rect.top
-      const isRtl = document.documentElement.dir === 'rtl'
-
-      const style = { position: 'fixed', zIndex: 9999 }
-
-      if (isRtl) {
-        style.right = `${window.innerWidth - rect.left + 4}px`
-      } else {
-        style.left = `${rect.right + 4}px`
-      }
-
-      const maxH = window.innerHeight - 16 // 8px padding top + bottom
-
-      if (spaceBelow >= dropdownHeight) {
-        // Enough room below — align top of dropdown with top of trigger
-        style.top = `${rect.top}px`
-        style.maxHeight = `${window.innerHeight - rect.top - 8}px`
-      } else if (rect.bottom >= dropdownHeight) {
-        // Enough room above — align bottom of dropdown with bottom of trigger
-        style.bottom = `${window.innerHeight - rect.bottom}px`
-        style.maxHeight = `${rect.bottom - 8}px`
-      } else {
-        // Dropdown is taller than both sides — pin to viewport with scroll
-        style.top = '8px'
-        style.maxHeight = `${maxH}px`
-      }
-
-      setDropdownStyle(style)
+    if (!dropdownOpen) return
+    const handler = (e) => {
+      if (triggerRef.current && !triggerRef.current.contains(e.target)) close()
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
     }
   }, [dropdownOpen])
 
@@ -75,15 +83,13 @@ function CollapsedGroupItem({ group }) {
   }
 
   return (
-    <div
-      ref={triggerRef}
-      onMouseEnter={() => setDropdownOpen(true)}
-      onMouseLeave={() => setDropdownOpen(false)}
-    >
+    <div ref={triggerRef}>
       <button
+        onClick={() => dropdownOpen ? close() : open()}
+        aria-expanded={dropdownOpen}
         className={clsx(
           'w-full flex flex-col items-center gap-0.5 px-1 py-2.5 rounded-lg font-medium transition-all duration-150',
-          anyActive
+          anyActive || dropdownOpen
             ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
             : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'
         )}
@@ -96,8 +102,6 @@ function CollapsedGroupItem({ group }) {
         <div
           style={dropdownStyle}
           className="min-w-[200px] max-h-[70vh] overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-2 animate-fade-in"
-          onMouseEnter={() => setDropdownOpen(true)}
-          onMouseLeave={() => setDropdownOpen(false)}
         >
           <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
             {group.group}
@@ -115,7 +119,7 @@ function CollapsedGroupItem({ group }) {
               <NavLink
                 key={entry.path}
                 to={entry.path}
-                onClick={() => setDropdownOpen(false)}
+                onClick={close}
                 className={({ isActive }) => clsx(
                   'flex items-center gap-2.5 px-3 py-2 mx-1.5 rounded-md text-sm transition-all duration-150',
                   isActive
@@ -140,7 +144,7 @@ function NavItem({ item }) {
   const location = useLocation()
   const [open, setOpen] = useState(() => {
     if (!item.children) return false
-    return item.children.some(c => c.path === location.pathname)
+    return item.children.some(c => isPathActive(c.path, location.pathname))
   })
 
   const hasChildren = !!item.children
@@ -163,7 +167,7 @@ function NavItem({ item }) {
     )
   }
 
-  const anyChildActive = item.children.some(c => c.path === location.pathname)
+  const anyChildActive = item.children.some(c => isPathActive(c.path, location.pathname))
 
   return (
     <div>
@@ -215,7 +219,10 @@ function NavItem({ item }) {
 
 export default function Sidebar({ mobileOpen, onMobileClose }) {
   const { sidebarCollapsed } = useTheme()
+  const { user } = useAuth()
   const collapsed = sidebarCollapsed
+  const role = user?.role ?? 'read_only'
+  const visibleGroups = menuItems.filter(g => !g.roles || g.roles.includes(role))
 
   return (
     <>
@@ -254,21 +261,23 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
           {collapsed ? (
             /* Collapsed: group icons with flyout */
             <div className="space-y-1">
-              {menuItems.map(group => (
+              {visibleGroups.map(group => (
                 <CollapsedGroupItem key={group.group} group={group} />
               ))}
             </div>
           ) : (
             /* Expanded: full menu with groups */
-            menuItems.map(group => (
+            visibleGroups.map(group => (
               <div key={group.group} className="mb-2">
                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                   {group.group}
                 </div>
                 <div className="space-y-0.5">
-                  {group.items.map(item => (
-                    <NavItem key={item.path || item.label} item={item} />
-                  ))}
+                  {group.items
+                    .filter(item => !item.roles || item.roles.includes(role))
+                    .map(item => (
+                      <NavItem key={item.path || item.label} item={item} />
+                    ))}
                 </div>
               </div>
             ))

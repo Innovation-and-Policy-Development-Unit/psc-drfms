@@ -1,6 +1,13 @@
 import { useTheme } from '../../context/ThemeContext'
+import { useTranslation } from 'react-i18next'
 import clsx from 'clsx'
 import { X, Monitor } from 'lucide-react'
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'fr', label: 'Français' },
+  { code: 'bi', label: 'Bislama' },
+]
 
 const colorPresets = [
   { id: 'navy', label: 'Navy', hex: '#004276' },
@@ -82,6 +89,7 @@ export default function SettingsPanel() {
     colorPreset, setColorPreset,
     settingsPanelOpen, closeSettingsPanel
   } = useTheme()
+  const { t, i18n } = useTranslation()
 
   if (!settingsPanelOpen) return null
 
@@ -154,13 +162,34 @@ export default function SettingsPanel() {
             </p>
           </div>
 
-          {/* Locale Options */}
-          <div className="px-5 py-5 space-y-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Regional</h4>
+          {/* Regional / Language */}
+          <div className="px-5 py-5 space-y-4 border-b border-slate-100 dark:border-slate-700">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              {t('settings.regional')}
+            </h4>
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('settings.language')}</p>
+              <div className="flex gap-2">
+                {LANGUAGES.map(lang => (
+                  <button
+                    key={lang.code}
+                    onClick={() => i18n.changeLanguage(lang.code)}
+                    className={clsx(
+                      'flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+                      i18n.resolvedLanguage === lang.code
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
+                        : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-500'
+                    )}
+                  >
+                    {lang.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Toggle
               checked={isRTL}
               onChange={toggleRTL}
-              label="RTL Direction"
+              label={t('settings.rtl')}
             />
           </div>
 

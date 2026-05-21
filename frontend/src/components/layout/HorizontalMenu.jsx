@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import clsx from 'clsx'
 import { ChevronDown, X } from 'lucide-react'
-import menuItems, { getAllPaths, flattenItems } from '../../data/menuItems'
+import menuItems, { getAllPaths, flattenItems, isGroupActive, isPathActive } from '../../data/menuItems'
 import Logo from '../shared/Logo'
 
-// Desktop: hover dropdown via portal
+// Desktop: click/tap dropdown via portal (works on touch devices)
 function HorizGroupItem({ group }) {
   const location = useLocation()
   const [open, setOpen] = useState(false)
@@ -15,32 +16,39 @@ function HorizGroupItem({ group }) {
 
   const GroupIcon = group.groupIcon
   const allPaths = getAllPaths(group.items)
-  const anyActive = allPaths.includes(location.pathname)
+  const anyActive = isGroupActive(allPaths, location.pathname)
   const flatItems = flattenItems(group.items)
 
+  const positionDropdown = () => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const isRtl = document.documentElement.dir === 'rtl'
+    const dropdownWidth = 220
+    const maxH = window.innerHeight - rect.bottom - 8
+    const style = {
+      position: 'fixed',
+      zIndex: 9999,
+      top: `${rect.bottom + 4}px`,
+      maxHeight: `${Math.max(maxH, 200)}px`,
+    }
+    if (isRtl) {
+      style.right = `${Math.max(0, window.innerWidth - rect.right)}px`
+    } else {
+      style.left = `${Math.min(rect.left, window.innerWidth - dropdownWidth - 8)}px`
+    }
+    setDropdownStyle(style)
+  }
+
   useEffect(() => {
-    if (open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect()
-      const isRtl = document.documentElement.dir === 'rtl'
-      const dropdownWidth = 220
-      const maxH = window.innerHeight - rect.bottom - 8
-
-      const style = {
-        position: 'fixed',
-        zIndex: 9999,
-        top: `${rect.bottom + 4}px`,
-        maxHeight: `${Math.max(maxH, 200)}px`,
-      }
-
-      if (isRtl) {
-        const right = window.innerWidth - rect.right
-        style.right = `${Math.max(0, right)}px`
-      } else {
-        const left = rect.left
-        style.left = `${Math.min(left, window.innerWidth - dropdownWidth - 8)}px`
-      }
-
-      setDropdownStyle(style)
+    if (!open) return
+    const handler = (e) => {
+      if (triggerRef.current && !triggerRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
     }
   }, [open])
 
@@ -62,13 +70,10 @@ function HorizGroupItem({ group }) {
   }
 
   return (
-    <div
-      className="relative"
-      ref={triggerRef}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <div className="relative" ref={triggerRef}>
       <button
+        onClick={() => { if (open) setOpen(false); else { positionDropdown(); setOpen(true) } }}
+        aria-expanded={open}
         className={clsx(
           'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 whitespace-nowrap',
           open || anyActive
@@ -85,8 +90,6 @@ function HorizGroupItem({ group }) {
         <div
           style={dropdownStyle}
           className="min-w-[200px] overflow-y-auto custom-scrollbar bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg py-2 animate-fade-in"
-          onMouseEnter={() => setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
         >
           {flatItems.map((entry, i) => {
             if (entry.type === 'header') {
@@ -126,7 +129,7 @@ function MobileNavItem({ item, onClose }) {
   const location = useLocation()
   const [open, setOpen] = useState(() => {
     if (!item.children) return false
-    return item.children.some(c => c.path === location.pathname)
+    return item.children.some(c => isPathActive(c.path, location.pathname))
   })
 
   const hasChildren = !!item.children
@@ -150,7 +153,7 @@ function MobileNavItem({ item, onClose }) {
     )
   }
 
-  const anyChildActive = item.children.some(c => c.path === location.pathname)
+  const anyChildActive = item.children.some(c => isPathActive(c.path, location.pathname))
 
   return (
     <div>
@@ -199,11 +202,15 @@ function MobileNavItem({ item, onClose }) {
 }
 
 export default function HorizontalMenu({ mobileOpen, onMobileClose }) {
+  const { user } = useAuth()
+  const role = user?.role ?? 'read_only'
+  const visibleGroups = menuItems.filter(g => !g.roles || g.roles.includes(role))
+
   return (
     <>
       {/* Desktop horizontal bar */}
       <div className="hidden lg:flex fixed top-16 start-0 end-0 h-12 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 z-20 items-center px-4 gap-1 overflow-x-auto scrollbar-hide">
-        {menuItems.map(group => (
+        {visibleGroups.map(group => (
           <HorizGroupItem key={group.group} group={group} />
         ))}
       </div>
@@ -242,15 +249,17 @@ export default function HorizontalMenu({ mobileOpen, onMobileClose }) {
 
         {/* Menu */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar py-4 px-2 space-y-0.5">
-          {menuItems.map(group => (
+          {visibleGroups.map(group => (
             <div key={group.group} className="mb-2">
               <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 {group.group}
               </div>
               <div className="space-y-0.5">
-                {group.items.map(item => (
-                  <MobileNavItem key={item.path || item.label} item={item} onClose={onMobileClose} />
-                ))}
+                {group.items
+                  .filter(item => !item.roles || item.roles.includes(role))
+                  .map(item => (
+                    <MobileNavItem key={item.path || item.label} item={item} onClose={onMobileClose} />
+                  ))}
               </div>
             </div>
           ))}
