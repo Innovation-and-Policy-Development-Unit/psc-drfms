@@ -56,6 +56,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_2fa_required = models.BooleanField(default=False)
+    # DEPRECATED — do NOT use for authentication decisions.
+    # 2FA verification state is now carried as a '2fa_verified' claim in the JWT.
+    # This field is kept for schema compatibility but is no longer written by auth views.
     is_2fa_verified = models.BooleanField(default=False)
 
     # Delegation

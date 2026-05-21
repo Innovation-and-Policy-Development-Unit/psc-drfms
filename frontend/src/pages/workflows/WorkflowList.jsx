@@ -36,7 +36,7 @@ export default function WorkflowList() {
                   <td className="text-sm">Step {inst.current_step}</td>
                   <td><span className={STATUS_BADGE[inst.status] || 'badge-secondary'}>{inst.status.replace('_', ' ')}</span></td>
                   <td className="text-sm text-slate-500">{new Date(inst.initiated_at).toLocaleDateString()}</td>
-                  <td><Link to={`/workflows/${inst.id}`} className="btn-sm btn-ghost">View</Link></td>
+                  <td><Link to={`/workflows/${inst.id}`} className="btn-sm btn-ghost">Open</Link></td>
                 </tr>
               ))}
             </tbody>

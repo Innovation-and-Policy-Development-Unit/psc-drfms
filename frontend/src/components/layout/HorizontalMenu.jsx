@@ -228,8 +228,8 @@ export default function HorizontalMenu({ mobileOpen, onMobileClose }) {
           <div className="flex items-center gap-3">
             <Logo size={32} />
             <div>
-              <span className="font-bold text-lg text-primary-500 dark:text-slate-300">Liner</span>
-              <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-1 font-medium tracking-wider uppercase">Admin</span>
+              <span className="font-bold text-lg text-primary-500 dark:text-slate-300">PSC-DRFMS</span>
+              <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-1 font-medium tracking-wider uppercase">Menu</span>
             </div>
           </div>
           <button

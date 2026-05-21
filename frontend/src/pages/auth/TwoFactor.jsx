@@ -14,7 +14,11 @@ export default function TwoFactor() {
     setLoading(true)
     setError('')
     try {
-      await authApi.verify2FA(otp)
+      // The server returns a fresh token pair with 2fa_verified=true embedded.
+      // Replace stored tokens so all subsequent requests carry the verified claim.
+      const { data } = await authApi.verify2FA(otp)
+      if (data.access) localStorage.setItem('access_token', data.access)
+      if (data.refresh) localStorage.setItem('refresh_token', data.refresh)
       navigate('/')
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid OTP code.')

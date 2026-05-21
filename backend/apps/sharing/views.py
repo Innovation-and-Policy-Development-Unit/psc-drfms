@@ -1,35 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers
 from django.shortcuts import get_object_or_404
 from .models import SharedLink, SharedLinkAccess
-
-
-class SharedLinkSerializer(serializers.ModelSerializer):
-    record_title = serializers.CharField(source='record.title', read_only=True)
-    record_reference = serializers.CharField(source='record.reference_number', read_only=True)
-    is_expired = serializers.BooleanField(read_only=True)
-
-    class Meta:
-        model = SharedLink
-        fields = [
-            'id', 'record', 'record_title', 'record_reference', 'record_version',
-            'token', 'created_by', 'recipient_email', 'recipient_name',
-            'allow_download', 'expires_at', 'is_active', 'access_count',
-            'created_at', 'is_expired',
-        ]
-        read_only_fields = ['token', 'created_by', 'access_count', 'created_at']
-
-    def create(self, validated_data):
-        password = validated_data.pop('password', '')
-        link = SharedLink(**validated_data)
-        link.created_by = self.context['request'].user
-        if password:
-            from django.contrib.auth.hashers import make_password
-            link.password = make_password(password)
-        link.save()
-        return link
+from .serializers import SharedLinkSerializer
 
 
 class SharedLinkListView(generics.ListCreateAPIView):
@@ -37,7 +11,11 @@ class SharedLinkListView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return SharedLink.objects.filter(created_by=self.request.user).select_related('record')
+        qs = SharedLink.objects.filter(created_by=self.request.user).select_related('record')
+        record_id = self.request.query_params.get('record')
+        if record_id:
+            qs = qs.filter(record_id=record_id)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

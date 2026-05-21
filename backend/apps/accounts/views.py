@@ -2,6 +2,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import NotFound
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
@@ -20,23 +21,69 @@ from .permissions import IsAdministrator, IsRecordsOfficerOrAbove
 User = get_user_model()
 
 
+MAX_FAILED_LOGINS = 5
+LOCKOUT_MINUTES = 30
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
+        email = (request.data.get('email') or '').lower().strip()
+
+        # --- Pre-auth lockout check ---
+        try:
+            candidate = User.objects.get(email=email)
+            if candidate.is_account_locked:
+                from apps.audit.utils import log_action
+                log_action(request, 'login_failed', None, extra={
+                    'reason': 'account_locked', 'email': email,
+                })
+                return Response(
+                    {'detail': 'Account is temporarily locked due to repeated failed attempts. Try again later.'},
+                    status=status.HTTP_423_LOCKED,
+                )
+        except User.DoesNotExist:
+            candidate = None
+
+        # --- Attempt authentication ---
+        try:
+            response = super().post(request, *args, **kwargs)
+        except Exception:
+            # Increment failure counter on the real user (if found)
+            if candidate:
+                candidate.failed_login_count += 1
+                update_fields = ['failed_login_count']
+                if candidate.failed_login_count >= MAX_FAILED_LOGINS:
+                    from datetime import timedelta
+                    candidate.account_locked_until = timezone.now() + timedelta(minutes=LOCKOUT_MINUTES)
+                    update_fields.append('account_locked_until')
+                candidate.save(update_fields=update_fields)
+
+                from apps.audit.utils import log_action
+                log_action(request, 'login_failed', None, extra={
+                    'email': email,
+                    'failed_count': candidate.failed_login_count,
+                })
+            raise
+
+        # --- Success path ---
         if response.status_code == 200:
-            user = User.objects.get(email=request.data.get('email'))
+            user = User.objects.get(email=email)
             user.last_active = timezone.now()
             user.last_login_ip = self._get_client_ip(request)
             user.failed_login_count = 0
-            user.save(update_fields=['last_active', 'last_login_ip', 'failed_login_count'])
+            user.account_locked_until = None
+            user.save(update_fields=['last_active', 'last_login_ip', 'failed_login_count', 'account_locked_until'])
 
-            response.data['requires_2fa'] = (
-                user.is_2fa_required and
-                TOTPDevice.objects.filter(user=user, confirmed=True).exists()
-            )
+            has_totp = TOTPDevice.objects.filter(user=user, confirmed=True).exists()
+            requires_2fa = user.is_2fa_required and has_totp
+            response.data['requires_2fa'] = requires_2fa
             response.data['role'] = user.role
+
+            from apps.audit.utils import log_action
+            log_action(request, 'login', None, extra={'email': email})
+
         return response
 
     def _get_client_ip(self, request):
@@ -140,6 +187,11 @@ class TwoFactorSetupView(APIView):
 
 
 class TwoFactorVerifyView(APIView):
+    """
+    Verifies a TOTP code and returns a *new* token pair that carries
+    '2fa_verified': True in the JWT payload.  The frontend must replace
+    its stored tokens with the ones returned here.
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -150,11 +202,25 @@ class TwoFactorVerifyView(APIView):
             return Response({'detail': 'No 2FA device found.'}, status=400)
 
         totp = pyotp.TOTP(device.key)
-        if totp.verify(otp, valid_window=1):
-            request.user.is_2fa_verified = True
-            request.user.save(update_fields=['is_2fa_verified'])
-            return Response({'detail': '2FA verified.'})
-        return Response({'detail': 'Invalid OTP.'}, status=400)
+        if not totp.verify(otp, valid_window=1):
+            return Response({'detail': 'Invalid OTP.'}, status=400)
+
+        # Issue a new token pair with 2fa_verified=True embedded in the payload.
+        # The DB field is intentionally NOT touched — verification lives in the token.
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(request.user)
+        refresh['email'] = request.user.email
+        refresh['role'] = request.user.role
+        refresh['full_name'] = request.user.get_full_name()
+        refresh['is_staff'] = request.user.is_staff
+        refresh['is_superuser'] = request.user.is_superuser
+        refresh['2fa_verified'] = True
+
+        return Response({
+            'detail': '2FA verified.',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        })
 
 
 class DelegationView(APIView):
@@ -170,7 +236,7 @@ class DelegationView(APIView):
         })
 
     def post(self, request):
-        serializer = DelegationSerializer(data=request.data)
+        serializer = DelegationSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         user = request.user
@@ -204,7 +270,10 @@ class UserSuspendView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
     def post(self, request, pk):
-        user = User.objects.get(pk=pk)
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise NotFound('User not found.')
         user.is_active = False
         user.save(update_fields=['is_active'])
         # Invalidate all tokens
@@ -218,7 +287,10 @@ class UserReactivateView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdministrator]
 
     def post(self, request, pk):
-        user = User.objects.get(pk=pk)
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise NotFound('User not found.')
         user.is_active = True
         user.failed_login_count = 0
         user.account_locked_until = None

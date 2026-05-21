@@ -1,28 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers
 from django.utils import timezone
 import re
 from .models import Comment, ReviewRound, ReviewRoundReviewer
-
-
-class CommentSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source='author.get_full_name', read_only=True)
-    replies = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Comment
-        fields = ['id', 'record', 'author', 'author_name', 'parent', 'body', 'is_internal', 'replies', 'created_at', 'updated_at']
-        read_only_fields = ['author', 'record']
-
-    def get_replies(self, obj):
-        if obj.parent is None:
-            return CommentSerializer(
-                obj.replies.filter(deleted_at__isnull=True),
-                many=True, context=self.context
-            ).data
-        return []
+from .serializers import CommentSerializer, ReviewRoundSerializer
 
 
 class CommentListView(generics.ListCreateAPIView):
@@ -71,23 +53,6 @@ class CommentDetailView(generics.RetrieveUpdateDestroyAPIView):
         comment.body = '[deleted]'
         comment.save(update_fields=['deleted_at', 'body'])
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class ReviewRoundSerializer(serializers.ModelSerializer):
-    opened_by_name = serializers.CharField(source='opened_by.get_full_name', read_only=True)
-    reviewers_count = serializers.SerializerMethodField()
-    responded_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ReviewRound
-        fields = ['id', 'record', 'title', 'instructions', 'deadline', 'opened_by', 'opened_by_name', 'opened_at', 'closed_at', 'is_open', 'reviewers_count', 'responded_count']
-        read_only_fields = ['opened_by', 'record', 'opened_at']
-
-    def get_reviewers_count(self, obj):
-        return obj.reviewers.count()
-
-    def get_responded_count(self, obj):
-        return obj.reviewers.filter(has_responded=True).count()
 
 
 class ReviewRoundListView(generics.ListCreateAPIView):

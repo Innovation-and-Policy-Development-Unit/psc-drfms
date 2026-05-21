@@ -19,7 +19,7 @@ export function ThemeProvider({ children }) {
 
   const [isHorizontal, setIsHorizontal] = useState(() => {
     const saved = localStorage.getItem('liner-horizontal')
-    return saved ? JSON.parse(saved) : false
+    return saved ? JSON.parse(saved) : true
   })
 
   const [colorPreset, setColorPreset] = useState(() => {

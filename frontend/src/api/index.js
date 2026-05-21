@@ -45,7 +45,7 @@ export const analyticsApi = {
 }
 
 export const sharingApi = {
-  getLinks: () => client.get('/sharing/'),
+  getLinks: (params) => client.get('/sharing/', { params }),
   createLink: (data) => client.post('/sharing/', data),
   revokeLink: (token) => client.post(`/sharing/${token}/revoke/`),
   viewShared: (token) => client.get(`/sharing/${token}/view/`),
@@ -68,6 +68,7 @@ export const auditApi = {
 
 export const notificationsApi = {
   list: (params) => client.get('/notifications/', { params }),
+  activity: (params) => client.get('/notifications/activity/', { params }),
   markRead: (id) => client.post(`/notifications/${id}/read/`),
   markAllRead: () => client.post('/notifications/mark-all-read/'),
 }

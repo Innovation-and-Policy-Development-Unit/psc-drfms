@@ -2,9 +2,22 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
+
+def api_root(_request):
+    return JsonResponse({
+        'service': 'PSC-DRFMS API',
+        'status': 'running',
+        'docs': '/api/docs/',
+        'health': '/api/health/',
+        'admin': '/admin/',
+    })
+
+
 urlpatterns = [
+    path('', api_root),
     path('admin/', admin.site.urls),
 
     # API v1

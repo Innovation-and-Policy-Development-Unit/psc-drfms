@@ -17,6 +17,12 @@ client.interceptors.response.use(
   res => res,
   async err => {
     const original = err.config
+    const isRefreshRequest = original?.url?.includes('/auth/token/refresh/')
+
+    if (!original || isRefreshRequest) {
+      return Promise.reject(err)
+    }
+
     if (err.response?.status === 401 && !original._retry) {
       original._retry = true
       const refresh = localStorage.getItem('refresh_token')
@@ -24,10 +30,12 @@ client.interceptors.response.use(
         try {
           const { data } = await axios.post(`${API_BASE}/auth/token/refresh/`, { refresh })
           localStorage.setItem('access_token', data.access)
+          original.headers = original.headers || {}
           original.headers.Authorization = `Bearer ${data.access}`
           return client(original)
         } catch {
-          localStorage.clear()
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
           window.location.href = '/auth/login'
         }
       }

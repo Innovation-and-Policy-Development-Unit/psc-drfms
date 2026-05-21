@@ -36,7 +36,7 @@ export default function SearchResults() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Unified Search</h1>
+      <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Search documents</h1>
 
       <form onSubmit={handleSearch} className="flex gap-3">
         <div className="relative flex-1">
@@ -62,7 +62,7 @@ export default function SearchResults() {
         {loading ? (
           [...Array(5)].map((_, i) => <div key={i} className="card p-4 animate-pulse h-20 skeleton" />)
         ) : results.map(record => (
-          <Link key={record.id} to={`/records/${record.id}`} className="card-hover block p-4">
+          <Link key={record.id} to={`/document/${record.id}`} className="card-hover block p-4">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center shrink-0">
                 <FileText size={16} className="text-primary-600" />

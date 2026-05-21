@@ -1,18 +1,9 @@
 from rest_framework import generics, permissions
-from rest_framework import serializers
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .models import Correspondence
+from .serializers import CorrespondenceSerializer
 from apps.accounts.permissions import IsRecordsOfficerOrAbove
-
-
-class CorrespondenceSerializer(serializers.ModelSerializer):
-    assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True)
-
-    class Meta:
-        model = Correspondence
-        fields = '__all__'
-        read_only_fields = ['reference_number', 'created_at', 'updated_at', 'created_by']
 
 
 class CorrespondenceListView(generics.ListCreateAPIView):

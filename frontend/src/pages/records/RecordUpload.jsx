@@ -65,7 +65,7 @@ export default function RecordUpload() {
 
     try {
       const { data } = await recordsApi.createRecord(fd)
-      navigate(`/records/${data.id}`)
+      navigate(`/document/${data.id}`)
     } catch (err) {
       setError(err.response?.data?.detail || JSON.stringify(err.response?.data) || 'Upload failed.')
     } finally {
@@ -76,8 +76,8 @@ export default function RecordUpload() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Upload Record</h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">Upload a new document. OCR and AI metadata tagging will process automatically.</p>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Upload</h1>
+        <p className="text-slate-500 dark:text-slate-400 mt-1">Add a file to your document library. OCR and search indexing run automatically.</p>
       </div>
 
       {error && (

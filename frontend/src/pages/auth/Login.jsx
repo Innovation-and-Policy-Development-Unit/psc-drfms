@@ -26,7 +26,21 @@ export default function Login() {
         navigate('/')
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid credentials. Please try again.')
+      if (!err.response) {
+        setError(
+          'Cannot reach the API server. Start Docker Desktop, then in the project folder run: docker compose up -d --build'
+        )
+      } else if (err.response?.status === 423) {
+        setError(err.response.data?.detail || 'Account is temporarily locked. Try again later.')
+      } else {
+        const detail = err.response?.data?.detail
+        const message = typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? detail.join(' ')
+            : err.response?.data?.non_field_errors?.[0]
+        setError(message || 'Invalid credentials. Use email admin@psc.gov.vu (not username "admin").')
+      }
     } finally {
       setLoading(false)
     }
@@ -46,10 +60,10 @@ export default function Login() {
               <div className="text-primary-200 text-xs">Government of Vanuatu</div>
             </div>
           </div>
-          <h1 className="text-4xl font-bold mb-4">Digital Records &<br />File Management System</h1>
+          <h1 className="text-4xl font-bold mb-4">Your documents.<br />One secure library.</h1>
           <p className="text-primary-200 text-lg leading-relaxed">
-            Enterprise-grade document management for the Office of the Public Service Commission.
-            Secure, sovereign, and purpose-built for OPSC operations.
+            Store, find, preview, and share files — with government-grade classification,
+            retention, and audit built in for the Public Service Commission.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -74,8 +88,8 @@ export default function Login() {
             <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Lock size={28} className="text-primary-600" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Sign in to PSC-DRFMS</h2>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">Office of the Public Service Commission</p>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Sign in</h2>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">PSC Document Library</p>
           </div>
 
           {error && (
@@ -133,7 +147,7 @@ export default function Login() {
           </form>
 
           <p className="text-center text-sm text-slate-500 dark:text-slate-400 mt-8">
-            Use your OPSC government credentials to sign in.<br />
+            Sign in with your <strong>email address</strong> (same as Django admin).<br />
             Contact the Administrator if you need access.
           </p>
         </div>

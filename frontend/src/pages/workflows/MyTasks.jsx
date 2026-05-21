@@ -32,7 +32,7 @@ export default function MyTasks() {
                   <p className="font-medium text-slate-900 dark:text-white">{task.step_name}</p>
                   <p className="text-sm text-slate-500">{task.deadline ? `Due: ${new Date(task.deadline).toLocaleDateString()}` : 'No deadline'}</p>
                 </div>
-                <Link to={`/workflows/${task.instance}`} className="btn-primary btn-sm shrink-0">Review & Action</Link>
+                <Link to={`/workflows/${task.instance}`} className="btn-primary btn-sm shrink-0">Review</Link>
               </div>
             )
           })}

@@ -106,14 +106,26 @@ class WorkflowAction(models.Model):
                 instance.current_step = next_step
                 instance.status = 'in_progress'
                 instance.save(update_fields=['current_step', 'status'])
-                from apps.notifications.utils import send_notification
-                send_notification(
-                    user_id=remaining.specific_user_id or user.id,
-                    title='Workflow Action Required',
-                    message=f'Your approval is required for: {instance.title}',
-                    notification_type='workflow',
-                    related_record_id=str(instance.record_id),
+                import datetime
+                assignee = remaining.specific_user or user
+                deadline = timezone.now() + datetime.timedelta(days=remaining.deadline_working_days)
+                WorkflowAction.objects.create(
+                    instance=instance,
+                    step_number=next_step,
+                    step_name=remaining.name,
+                    assigned_to=assignee,
+                    deadline=deadline,
                 )
+                from apps.notifications.utils import send_notification
+                if assignee:
+                    send_notification(
+                        user_id=assignee.id,
+                        title='Workflow Action Required',
+                        message=f'Your approval is required for: {instance.title}',
+                        notification_type='workflow',
+                        related_record_id=str(instance.record_id),
+                        related_url=f'/workflows/{instance.id}',
+                    )
                 return
         instance.status = 'approved'
         instance.completed_at = timezone.now()

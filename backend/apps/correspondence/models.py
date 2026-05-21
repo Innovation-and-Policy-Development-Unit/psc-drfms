@@ -40,11 +40,31 @@ class Correspondence(models.Model):
     def __str__(self):
         return f"[{self.reference_number}] {self.subject}"
 
+    @classmethod
+    def _next_sequence(cls, year: int) -> int:
+        from django.db import connection, transaction
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO correspondence_refsequence (year, last_value)
+                        VALUES (%s, 1)
+                        ON CONFLICT (year) DO UPDATE
+                            SET last_value = correspondence_refsequence.last_value + 1
+                        RETURNING last_value
+                        """,
+                        [year],
+                    )
+                    return cur.fetchone()[0]
+        except Exception:
+            return cls.objects.filter(created_at__year=year).count() + 1
+
     def save(self, *args, **kwargs):
         if not self.reference_number:
             from django.utils import timezone
             year = timezone.now().year
-            count = Correspondence.objects.filter(created_at__year=year).count() + 1
+            seq = Correspondence._next_sequence(year)
             dir_code = {'incoming': 'IN', 'outgoing': 'OUT', 'internal': 'INT'}.get(self.direction, 'X')
-            self.reference_number = f"CORR-{dir_code}-{year}-{count:05d}"
+            self.reference_number = f"CORR-{dir_code}-{year}-{seq:05d}"
         super().save(*args, **kwargs)

@@ -1,26 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers
 from django.utils import timezone
 from .models import ApiKey, WebhookEndpoint
+from .serializers import ApiKeySerializer, ApiKeyCreateSerializer, WebhookSerializer
 from apps.accounts.permissions import IsAdministrator
-
-
-class ApiKeySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ApiKey
-        fields = ['id', 'name', 'key_prefix', 'scopes', 'rate_limit_per_min', 'is_active', 'last_used', 'expires_at', 'created_at']
-        read_only_fields = ['key_prefix', 'last_used', 'created_at']
-
-
-class ApiKeyCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ApiKey
-        fields = ['name', 'scopes', 'rate_limit_per_min', 'expires_at']
-
-    def create(self, validated_data):
-        return ApiKey.objects.create(user=self.context['request'].user, **validated_data)
 
 
 class ApiKeyListView(generics.ListCreateAPIView):
@@ -52,13 +36,6 @@ class ApiKeyRevokeView(APIView):
         key.is_active = False
         key.save(update_fields=['is_active'])
         return Response({'detail': 'API key revoked.'})
-
-
-class WebhookSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WebhookEndpoint
-        fields = ['id', 'name', 'url', 'events', 'is_active', 'created_at']
-        read_only_fields = ['created_at']
 
 
 class WebhookListView(generics.ListCreateAPIView):

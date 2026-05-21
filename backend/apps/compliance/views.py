@@ -1,22 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers
 from django.utils import timezone
 from .models import LegalHold, DestructionCertificate, RetentionSchedule
+from .serializers import LegalHoldSerializer, DestructionCertificateSerializer, RetentionScheduleSerializer
 from apps.accounts.permissions import IsRecordsOfficerOrAbove, IsDirectorOrAbove, IsAdministrator
-
-
-class LegalHoldSerializer(serializers.ModelSerializer):
-    applied_by_name = serializers.CharField(source='applied_by.get_full_name', read_only=True)
-    records_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = LegalHold
-        fields = '__all__'
-
-    def get_records_count(self, obj):
-        return obj.records.count()
 
 
 class LegalHoldListView(generics.ListCreateAPIView):
@@ -55,13 +43,6 @@ class LegalHoldLiftView(APIView):
         return Response({'detail': 'Legal hold lifted.'})
 
 
-class DestructionCertificateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DestructionCertificate
-        fields = '__all__'
-        read_only_fields = ['certificate_number', 'created_at']
-
-
 class DestructionCertificateListView(generics.ListCreateAPIView):
     queryset = DestructionCertificate.objects.all()
     serializer_class = DestructionCertificateSerializer
@@ -94,12 +75,6 @@ class DestructionApproveView(APIView):
             cert.save(update_fields=['status'])
             return Response({'detail': 'Destruction rejected.'})
         return Response({'detail': 'Invalid action.'}, status=400)
-
-
-class RetentionScheduleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RetentionSchedule
-        fields = '__all__'
 
 
 class RetentionScheduleListView(generics.ListCreateAPIView):

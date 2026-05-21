@@ -108,11 +108,37 @@ class Record(models.Model):
     def __str__(self):
         return f"[{self.reference_number}] {self.title}"
 
+    @classmethod
+    def _next_sequence(cls, year: int) -> int:
+        """
+        Atomically increment a per-year counter using a SELECT … FOR UPDATE
+        on a dedicated sequence row, avoiding the count+1 race condition.
+        Falls back to a simple count if the sequence table doesn't exist yet.
+        """
+        from django.db import connection, transaction
+        try:
+            with transaction.atomic():
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO records_refsequence (year, last_value)
+                        VALUES (%s, 1)
+                        ON CONFLICT (year) DO UPDATE
+                            SET last_value = records_refsequence.last_value + 1
+                        RETURNING last_value
+                        """,
+                        [year],
+                    )
+                    return cur.fetchone()[0]
+        except Exception:
+            # Fallback during initial migration (table may not exist yet)
+            return cls.objects.filter(created_at__year=year).count() + 1
+
     def generate_reference_number(self):
         from django.utils import timezone
         year = timezone.now().year
-        count = Record.objects.filter(created_at__year=year).count() + 1
-        return f"PSC-{year}-{count:05d}"
+        seq = Record._next_sequence(year)
+        return f"PSC-{year}-{seq:05d}"
 
     def save(self, *args, **kwargs):
         if not self.reference_number:
@@ -156,6 +182,20 @@ class RecordVersion(models.Model):
 
     def compute_hash(self, file_content: bytes) -> str:
         return hashlib.sha256(file_content).hexdigest()
+
+
+class RecordStar(models.Model):
+    """Per-user starred / favourite records."""
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='starred_records')
+    record = models.ForeignKey(Record, on_delete=models.CASCADE, related_name='stars')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [['user', 'record']]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user_id} ★ {self.record_id}'
 
 
 class DocumentPermission(models.Model):

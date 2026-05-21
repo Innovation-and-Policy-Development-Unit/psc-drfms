@@ -2,6 +2,14 @@ from .base import *
 
 DEBUG = True
 
+# Docker Compose service names (nginx proxy / internal health checks)
+ALLOWED_HOSTS = list({
+    *ALLOWED_HOSTS,
+    'backend',
+    'frontend',
+    'localhost:3000',
+})
+
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Use local media storage in development for simplicity

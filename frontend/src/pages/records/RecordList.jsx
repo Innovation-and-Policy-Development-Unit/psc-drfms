@@ -76,7 +76,7 @@ export default function RecordList() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Records</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-0.5">{count} total records</p>
         </div>
-        <Link to="/records/upload" className="btn-primary">
+        <Link to="/upload" className="btn-primary">
           <Upload size={16} /> Upload Record
         </Link>
       </div>
@@ -169,7 +169,7 @@ export default function RecordList() {
                     <div className="flex items-center gap-2">
                       {record.is_vital && <Star size={13} className="text-amber-500 shrink-0" />}
                       {record.is_on_legal_hold && <Lock size={13} className="text-red-500 shrink-0" />}
-                      <Link to={`/records/${record.id}`} className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400 line-clamp-1">
+                      <Link to={`/document/${record.id}`} className="text-sm font-medium text-slate-900 dark:text-slate-100 hover:text-primary-600 dark:hover:text-primary-400 line-clamp-1">
                         {record.title}
                       </Link>
                     </div>
@@ -187,7 +187,7 @@ export default function RecordList() {
                     }
                   </td>
                   <td>
-                    <Link to={`/records/${record.id}`} className="btn-sm btn-ghost">
+                    <Link to={`/document/${record.id}`} className="btn-sm btn-ghost">
                       <Eye size={14} />
                     </Link>
                   </td>

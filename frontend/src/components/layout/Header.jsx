@@ -18,31 +18,26 @@ const notifications = [
 ]
 
 const breadcrumbMap = {
-  '/': ['Dashboard', 'Analytics'],
-  '/ecommerce': ['Dashboard', 'eCommerce'],
+  '/': ['Dashboard'],
+  '/records': ['Records', 'All Records'],
+  '/records/upload': ['Records', 'Upload'],
+  '/records/series': ['Records', 'Series'],
+  '/workflows': ['Workflows'],
+  '/workflows/my-tasks': ['Workflows', 'My Tasks'],
+  '/search': ['Search'],
+  '/compliance/legal-holds': ['Compliance', 'Legal Holds'],
+  '/compliance/destruction': ['Compliance', 'Destruction'],
+  '/compliance/retention': ['Compliance', 'Retention'],
+  '/compliance/overdue': ['Compliance', 'Overdue'],
+  '/correspondence': ['Correspondence'],
+  '/sharing': ['Sharing'],
   '/analytics': ['Analytics'],
-  '/apps/calendar': ['Apps', 'Calendar'],
-  '/apps/chat': ['Apps', 'Chat'],
-  '/apps/email': ['Apps', 'Email'],
-  '/apps/contacts': ['Apps', 'Contacts'],
-  '/apps/notes': ['Apps', 'Notes'],
-  '/apps/todo': ['Apps', 'Todo'],
-  '/apps/tickets': ['Apps', 'Tickets'],
-  '/pages/account': ['Pages', 'Account Settings'],
-  '/pages/pricing': ['Pages', 'Pricing'],
-  '/pages/faq': ['Pages', 'FAQ'],
-  '/pages/blog': ['Pages', 'Blog'],
-  '/ui/buttons': ['UI Elements', 'Buttons'],
-  '/ui/alerts': ['UI Elements', 'Alerts'],
-  '/ui/cards': ['UI Elements', 'Cards'],
-  '/forms/form-elements': ['Forms', 'Form Elements'],
-  '/tables/basic': ['Tables', 'Basic Table'],
-  '/charts': ['Charts'],
-  '/icons': ['Icons'],
-  '/auth/login': ['Auth', 'Login'],
-  '/auth/register': ['Auth', 'Register'],
-  '/auth/reset-password': ['Auth', 'Reset Password'],
-  '/404': ['Error', '404'],
+  '/analytics/audit': ['Analytics', 'Audit Trail'],
+  '/analytics/compliance': ['Analytics', 'Compliance Report'],
+  '/admin/users': ['Administration', 'Users'],
+  '/admin/health': ['Administration', 'System Health'],
+  '/admin/departments': ['Administration', 'Departments'],
+  '/admin/api-keys': ['Administration', 'API Keys'],
 }
 
 function NotificationIcon({ type }) {
@@ -66,7 +61,7 @@ const UserMenuItem = memo(function UserMenuItem({ Icon, label, path, onClick }) 
 })
 
 export default function Header({ onMenuClick }) {
-  const { isDark, toggleDark, openSettingsPanel, sidebarCollapsed, isHorizontal } = useTheme()
+  const { isDark, toggleDark, openSettingsPanel } = useTheme()
   const [notifOpen, setNotifOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -88,8 +83,6 @@ export default function Header({ onMenuClick }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const startOffset = isHorizontal ? 'start-0' : (sidebarCollapsed ? 'lg:start-[5.5rem]' : 'lg:start-64')
-
   const handleSearchChange = useCallback(e => setSearchQuery(e.target.value), [])
   const handleSearchClose = useCallback(() => { setSearchOpen(false); setSearchQuery('') }, [])
   const handleSearchOpen = useCallback(() => setSearchOpen(true), [])
@@ -109,38 +102,26 @@ export default function Header({ onMenuClick }) {
   }, [navigate])
 
   return (
-    <header className={clsx(
-      'fixed top-0 end-0 start-0 h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 z-30 flex items-center px-4 gap-3 sidebar-transition',
-      startOffset
-    )}>
-      {/* Mobile logo + menu button */}
-      <div className="flex lg:hidden items-center gap-2">
-        <Logo size={28} />
-        <button
-          onClick={onMenuClick}
-          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
-        >
-          <Menu size={20} />
-        </button>
-      </div>
+    <header className="fixed top-0 end-0 start-0 h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 z-30 flex items-center px-4 gap-3">
+      {/* Mobile menu */}
+      <button
+        onClick={onMenuClick}
+        className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu size={20} />
+      </button>
 
-      {/* Desktop: logo for horizontal, menu toggle for sidebar */}
-      {isHorizontal ? (
-        <div className="hidden lg:flex items-center gap-3">
-          <Logo size={32} />
-          <div>
-            <span className="font-bold text-lg text-primary-500 dark:text-slate-300">Liner</span>
-            <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-1 font-medium tracking-wider uppercase">Admin</span>
-          </div>
+      {/* Brand */}
+      <div className="flex items-center gap-3 shrink-0">
+        <Logo size={32} />
+        <div className="hidden sm:block">
+          <span className="font-bold text-lg text-primary-500 dark:text-slate-300">PSC-DRFMS</span>
+          <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-1 font-medium tracking-wider uppercase">
+            Public Service Commission
+          </span>
         </div>
-      ) : (
-        <button
-          onClick={onMenuClick}
-          className="hidden lg:flex p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors"
-        >
-          <Menu size={20} />
-        </button>
-      )}
+      </div>
 
       {/* Breadcrumbs */}
       <div className="hidden md:flex items-center gap-1.5 text-sm">

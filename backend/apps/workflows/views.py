@@ -1,42 +1,13 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import serializers
 from django.utils import timezone
 from .models import WorkflowTemplate, WorkflowStep, WorkflowInstance, WorkflowAction
+from .serializers import (
+    WorkflowTemplateSerializer, WorkflowInstanceSerializer,
+    WorkflowActionSerializer,
+)
 from apps.accounts.permissions import IsRecordsOfficerOrAbove, IsAdministrator
-
-
-class WorkflowStepSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WorkflowStep
-        fields = ['id', 'step_number', 'name', 'description', 'role_required', 'specific_user', 'deadline_working_days', 'is_parallel']
-
-
-class WorkflowTemplateSerializer(serializers.ModelSerializer):
-    steps = WorkflowStepSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = WorkflowTemplate
-        fields = ['id', 'name', 'description', 'document_type', 'is_active', 'steps', 'created_at']
-
-
-class WorkflowActionSerializer(serializers.ModelSerializer):
-    assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True)
-
-    class Meta:
-        model = WorkflowAction
-        fields = ['id', 'step_number', 'step_name', 'assigned_to', 'assigned_to_name', 'action', 'comments', 'deadline', 'actioned_at']
-
-
-class WorkflowInstanceSerializer(serializers.ModelSerializer):
-    actions = WorkflowActionSerializer(many=True, read_only=True)
-    record_reference = serializers.CharField(source='record.reference_number', read_only=True)
-    initiated_by_name = serializers.CharField(source='initiated_by.get_full_name', read_only=True)
-
-    class Meta:
-        model = WorkflowInstance
-        fields = ['id', 'record', 'record_reference', 'template', 'title', 'current_step', 'status', 'initiated_by', 'initiated_by_name', 'initiated_at', 'completed_at', 'notes', 'actions']
 
 
 class WorkflowTemplateListView(generics.ListCreateAPIView):

@@ -79,8 +79,6 @@ export default function SettingsPanel() {
   const {
     isDark, toggleDark,
     isRTL, toggleRTL,
-    sidebarCollapsed, toggleSidebar,
-    isHorizontal, toggleHorizontal,
     colorPreset, setColorPreset,
     settingsPanelOpen, closeSettingsPanel
   } = useTheme()
@@ -148,19 +146,12 @@ export default function SettingsPanel() {
             </div>
           </div>
 
-          {/* Layout Options */}
-          <div className="px-5 py-5 border-b border-slate-100 dark:border-slate-700 space-y-4">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Layout</h4>
-            <Toggle
-              checked={sidebarCollapsed}
-              onChange={toggleSidebar}
-              label="Collapsed Sidebar"
-            />
-            <Toggle
-              checked={isHorizontal}
-              onChange={toggleHorizontal}
-              label="Horizontal Menu"
-            />
+          {/* Layout */}
+          <div className="px-5 py-5 border-b border-slate-100 dark:border-slate-700">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Layout</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              Navigation uses a top menu bar below the header. On smaller screens, use the menu icon to open the full navigation drawer.
+            </p>
           </div>
 
           {/* Locale Options */}
