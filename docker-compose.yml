@@ -50,6 +50,26 @@ services:
       retries: 5
       start_period: 20s
 
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-psc_drfms_oo_secret_change_in_prod}
+      JWT_HEADER: Authorization
+      JWT_IN_HEADER: "true"
+    ports:
+      - "8080:80"
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_logs:/var/log/onlyoffice
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/ -o /dev/null || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+
   backend:
     build:
       context: ./backend
@@ -145,3 +165,5 @@ volumes:
   minio_data:
   static_files:
   media_files:
+  onlyoffice_data:
+  onlyoffice_logs:

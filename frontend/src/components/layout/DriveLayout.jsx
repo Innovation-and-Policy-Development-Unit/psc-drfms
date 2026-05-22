@@ -80,7 +80,6 @@ function RouteBreadcrumbs({ pathname }) {
 export default function DriveLayout() {
   const [mobileNav, setMobileNav] = useState(false)
   const location = useLocation()
-  const isDocumentView = location.pathname.startsWith('/document/')
 
   return (
     <div className="h-screen flex flex-col bg-[#f3f2f1] dark:bg-slate-950 overflow-hidden">
@@ -103,19 +102,11 @@ export default function DriveLayout() {
           <DriveSidebar onNavigate={() => setMobileNav(false)} />
         </div>
 
-        <main
-          className={clsx(
-            'flex-1 min-w-0 overflow-auto',
-            isDocumentView ? 'p-0' : 'p-4 sm:p-6'
-          )}
-        >
-          {!isDocumentView && (
-            <div className="max-w-[1600px] mx-auto h-full">
-              <RouteBreadcrumbs pathname={location.pathname} />
-              <Outlet />
-            </div>
-          )}
-          {isDocumentView && <Outlet />}
+        <main className="flex-1 min-w-0 overflow-auto p-4 sm:p-6">
+          <div className="max-w-[1600px] mx-auto">
+            <RouteBreadcrumbs pathname={location.pathname} />
+            <Outlet />
+          </div>
         </main>
       </div>
 

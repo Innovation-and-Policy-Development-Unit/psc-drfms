@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { recordsApi } from '../../api'
+import { recordsApi, onlyofficeApi } from '../../api'
 import { getFileTypeInfo, formatFileSize, getOfficeOpenUrl } from '../../utils/fileType'
-import DriveBreadcrumbs from '../../components/drive/DriveBreadcrumbs'
+import OnlyOfficeEditor from '../../components/record/OnlyOfficeEditor'
 import CommentsPanel from '../../components/record/CommentsPanel'
 import VersionsPanel from '../../components/record/VersionsPanel'
 import SharePanel from '../../components/record/SharePanel'
@@ -31,7 +31,8 @@ export default function RecordDetail() {
   const navigate = useNavigate()
   const [record, setRecord] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
-  const [officePreview, setOfficePreview] = useState(null)
+  const [ooConfig, setOoConfig] = useState(null)
+  const [ooApiUrl, setOoApiUrl] = useState(null)
   const [loading, setLoading] = useState(true)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [error, setError] = useState('')
@@ -60,13 +61,17 @@ export default function RecordDetail() {
     const { previewable, officeType } = getFileTypeInfo(version.mime_type, version.file_name)
 
     setPreviewUrl(null)
-    setOfficePreview(null)
+    setOoConfig(null)
+    setOoApiUrl(null)
 
     if (officeType) {
       setPreviewLoading(true)
-      recordsApi.getVersionPreviewUrl(id, version.id)
-        .then(({ data }) => setOfficePreview(data))
-        .catch(() => setOfficePreview(null))
+      onlyofficeApi.getConfig(id, version.id)
+        .then(({ data }) => {
+          setOoConfig(data)
+          setOoApiUrl(data.editor_api_url)
+        })
+        .catch(() => { setOoConfig(null); setOoApiUrl(null) })
         .finally(() => setPreviewLoading(false))
       return
     }
@@ -134,7 +139,7 @@ export default function RecordDetail() {
   const { Icon, color, previewable, officeType, label } = getFileTypeInfo(version?.mime_type, version?.file_name)
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3rem)] bg-white dark:bg-slate-900 -m-4 sm:-m-6">
+    <div className="space-y-4">
       <ShareDialog
         open={shareOpen}
         onClose={() => setShareOpen(false)}
@@ -142,14 +147,11 @@ export default function RecordDetail() {
         recordTitle={record.title}
       />
 
-      <div className="px-4 pt-3 shrink-0 border-b border-slate-200 dark:border-slate-700">
-        <DriveBreadcrumbs items={[
-          { label: 'All files', to: '/browse' },
-          { label: record.title },
-        ]} />
-        <div className="flex items-center gap-3 pb-3">
-          <button type="button" onClick={() => navigate(-1)} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
-            <ArrowLeft size={18} />
+      {/* Page header card */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl">
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+          <button type="button" onClick={() => navigate(-1)} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 shrink-0">
+            <ArrowLeft size={18} className="text-slate-600 dark:text-slate-400" />
           </button>
           <div className={clsx('w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0', color)}>
             <Icon size={20} />
@@ -158,34 +160,37 @@ export default function RecordDetail() {
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white truncate">{record.title}</h1>
             <p className="text-xs text-slate-500 font-mono">{record.reference_number}</p>
           </div>
-          <button
-            type="button"
-            onClick={toggleStar}
-            disabled={starring}
-            className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
-            title={record.is_starred ? 'Unstar' : 'Star'}
-          >
-            <Star size={18} className={record.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-400'} />
-          </button>
-          {record.is_vital && <Star size={16} className="text-amber-500 fill-amber-500" />}
-          {record.is_on_legal_hold && <Lock size={16} className="text-red-500" />}
-          <button type="button" onClick={() => setShareOpen(true)} className="btn-outline btn-sm">
-            <Share2 size={14} /> Share
-          </button>
-          {version && (
-            <button type="button" onClick={handleDownload} className="btn-primary btn-sm">
-              <Download size={14} /> Download
+          <div className="flex items-center gap-1 shrink-0">
+            {record.is_on_legal_hold && <Lock size={16} className="text-red-500" title="Legal hold" />}
+            <button
+              type="button"
+              onClick={toggleStar}
+              disabled={starring}
+              className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
+              title={record.is_starred ? 'Unstar' : 'Star'}
+            >
+              <Star size={18} className={record.is_starred ? 'text-amber-500 fill-amber-500' : 'text-slate-400'} />
             </button>
-          )}
+            <button type="button" onClick={() => setShareOpen(true)} className="btn-outline btn-sm">
+              <Share2 size={14} /> Share
+            </button>
+            {version && (
+              <button type="button" onClick={handleDownload} className="btn-primary btn-sm">
+                <Download size={14} /> Download
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide -mb-px">
+
+        {/* Tabs */}
+        <div className="flex gap-1 px-4 overflow-x-auto scrollbar-hide border-t border-slate-100 dark:border-slate-700">
           {TABS.map(({ id: tid, label, icon: TabIcon }) => (
             <button
               key={tid}
               type="button"
               onClick={() => setTab(tid)}
               className={clsx(
-                'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
+                'flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
                 tab === tid
                   ? 'border-primary-600 text-primary-700 dark:text-primary-300'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -198,87 +203,54 @@ export default function RecordDetail() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {tab === 'preview' && (
-          <div className="flex h-full">
-            <div className="flex-1 bg-slate-100 dark:bg-slate-950 flex items-center justify-center relative">
-              {previewLoading ? (
-                <Loader2 size={28} className="animate-spin text-slate-400" />
-              ) : officePreview?.use_office_viewer && officePreview.office_embed_url ? (
-                <iframe
-                  title="Office preview"
-                  src={officePreview.office_embed_url}
-                  className="w-full h-full border-0"
-                />
-              ) : previewUrl && previewable ? (
-                version.mime_type?.includes('pdf') ? (
-                  <iframe title="Preview" src={previewUrl} className="w-full h-full border-0" />
-                ) : (
-                  <img src={previewUrl} alt={record.title} className="max-w-full max-h-full object-contain p-4" />
-                )
-              ) : officeType ? (
-                <OfficeFallback
-                  label={label}
-                  color={color}
-                  Icon={Icon}
-                  version={version}
-                  officePreview={officePreview}
-                  onDownload={handleDownload}
-                />
+      {/* Tab content */}
+      {tab === 'preview' && (
+        <div className="flex gap-4">
+          <div className={clsx(
+            'flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden min-h-[520px]',
+            (ooConfig && ooApiUrl) ? '' : 'flex items-center justify-center'
+          )}>
+            {previewLoading ? (
+              <Loader2 size={28} className="animate-spin text-slate-400" />
+            ) : ooConfig && ooApiUrl ? (
+              <OnlyOfficeEditor config={ooConfig} apiUrl={ooApiUrl} />
+            ) : previewUrl && previewable ? (
+              version.mime_type?.includes('pdf') ? (
+                <iframe title="Preview" src={previewUrl} className="w-full h-full min-h-[520px] border-0" />
               ) : (
-                <div className="text-center p-8">
-                  <div className={clsx('w-20 h-20 rounded-2xl flex items-center justify-center text-white mx-auto mb-4', color)}>
-                    <Icon size={40} />
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm">Preview not available for this file type</p>
-                  {version && (
-                    <button type="button" onClick={handleDownload} className="btn-primary mt-4">
-                      <Download size={16} /> Download
-                    </button>
-                  )}
+                <img src={previewUrl} alt={record.title} className="max-w-full max-h-[520px] object-contain p-4" />
+              )
+            ) : officeType ? (
+              <OfficeFallback label={label} color={color} Icon={Icon} version={version} officePreview={null} onDownload={handleDownload} />
+            ) : (
+              <div className="text-center p-8">
+                <div className={clsx('w-20 h-20 rounded-2xl flex items-center justify-center text-white mx-auto mb-4', color)}>
+                  <Icon size={40} />
                 </div>
-              )}
-            </div>
-            <aside className="w-72 shrink-0 border-s border-slate-200 dark:border-slate-700 overflow-y-auto custom-scrollbar p-4 text-sm space-y-3 hidden lg:block">
-              <DetailField label="File" value={version?.file_name} />
-              <DetailField label="Size" value={formatFileSize(version?.file_size)} />
-              <DetailField label="Modified" value={record.updated_at ? new Date(record.updated_at).toLocaleString() : '—'} />
-              <DetailField label="Custodian" value={record.custodian_name} />
-              {record.description && <DetailField label="Description" value={record.description} />}
-            </aside>
+                <p className="text-slate-600 dark:text-slate-400 text-sm">Preview not available for this file type</p>
+                {version && (
+                  <button type="button" onClick={handleDownload} className="btn-primary mt-4">
+                    <Download size={16} /> Download
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        )}
-        {tab === 'versions' && (
-          <div className="h-full overflow-hidden">
-            <VersionsPanel recordId={id} onVersionChange={loadRecord} />
-          </div>
-        )}
-        {tab === 'comments' && (
-          <div className="h-full flex flex-col">
-            <CommentsPanel recordId={id} />
-          </div>
-        )}
-        {tab === 'share' && (
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <SharePanel recordId={id} recordTitle={record.title} />
-          </div>
-        )}
-        {tab === 'access' && (
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <PermissionsPanel recordId={id} />
-          </div>
-        )}
-        {tab === 'governance' && (
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <GovernancePanel record={record} />
-          </div>
-        )}
-        {tab === 'activity' && (
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <ActivityPanel recordId={id} />
-          </div>
-        )}
-      </div>
+          <aside className="w-64 shrink-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-sm space-y-3 hidden lg:block self-start">
+            <DetailField label="File" value={version?.file_name} />
+            <DetailField label="Size" value={formatFileSize(version?.file_size)} />
+            <DetailField label="Modified" value={record.updated_at ? new Date(record.updated_at).toLocaleString() : '—'} />
+            <DetailField label="Custodian" value={record.custodian_name} />
+            {record.description && <DetailField label="Description" value={record.description} />}
+          </aside>
+        </div>
+      )}
+      {tab === 'versions'   && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"><VersionsPanel recordId={id} onVersionChange={loadRecord} /></div>}
+      {tab === 'comments'   && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"><CommentsPanel recordId={id} /></div>}
+      {tab === 'share'      && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"><SharePanel recordId={id} recordTitle={record.title} /></div>}
+      {tab === 'access'     && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"><PermissionsPanel recordId={id} /></div>}
+      {tab === 'governance' && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"><GovernancePanel record={record} /></div>}
+      {tab === 'activity'   && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden"><ActivityPanel recordId={id} /></div>}
     </div>
   )
 }
@@ -303,9 +275,7 @@ function OfficeFallback({ label, color, Icon, version, officePreview, onDownload
       </div>
       <p className="text-lg font-medium text-slate-800 dark:text-slate-200">{label} document</p>
       <p className="text-sm text-slate-500 mt-2">
-        {officePreview?.presigned_url
-          ? 'Online preview requires a publicly reachable file URL. Use Open in app or download.'
-          : 'Preview in the browser is not available locally. Open in Microsoft Office or download the file.'}
+        The collaborative editor is unavailable. Open the file in your local Office application or download it.
       </p>
       <div className="flex flex-wrap gap-2 justify-center mt-6">
         <button type="button" onClick={openInApp} className="btn-primary">

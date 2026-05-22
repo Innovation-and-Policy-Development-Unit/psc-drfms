@@ -72,3 +72,7 @@ export const notificationsApi = {
   markRead: (id) => client.post(`/notifications/${id}/read/`),
   markAllRead: () => client.post('/notifications/mark-all-read/'),
 }
+
+export const onlyofficeApi = {
+  getConfig: (recordId, versionId) => client.get(`/onlyoffice/config/${recordId}/${versionId}/`),
+}
