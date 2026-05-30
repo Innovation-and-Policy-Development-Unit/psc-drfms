@@ -24,6 +24,11 @@ interface OnlyOfficeEditorProps {
   apiUrl: string | null
 }
 
+function buildEditorConfig(raw: Record<string, unknown>) {
+  const { editorApiUrl: _a, editor_api_url: _b, ...editorConfig } = raw
+  return editorConfig
+}
+
 export default function OnlyOfficeEditor({ config, apiUrl }: OnlyOfficeEditorProps) {
   const editorRef = useRef<{ destroyEditor?: () => void } | null>(null)
   const containerId = 'oo-editor-container'
@@ -31,10 +36,12 @@ export default function OnlyOfficeEditor({ config, apiUrl }: OnlyOfficeEditorPro
   useEffect(() => {
     if (!config || !apiUrl) return
 
+    const editorConfig = buildEditorConfig(config)
+
     loadEditorScript(apiUrl, () => {
       if (!window.DocsAPI) return
       editorRef.current?.destroyEditor?.()
-      editorRef.current = new window.DocsAPI.DocEditor(containerId, config)
+      editorRef.current = new window.DocsAPI.DocEditor(containerId, editorConfig)
     })
 
     return () => {

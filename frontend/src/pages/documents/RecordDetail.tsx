@@ -16,6 +16,7 @@ import { Panel } from '@/components/ui/Panel'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useTransfers } from '@/context/TransferContext'
 
 const TABS = [
   { id: 'preview', label: 'Preview' },
@@ -42,6 +43,7 @@ export default function RecordDetail() {
   const [tab, setTab] = useState<TabId>('preview')
   const [shareOpen, setShareOpen] = useState(false)
   const [starring, setStarring] = useState(false)
+  const { queueDownload } = useTransfers()
 
   const loadRecord = useCallback(() => {
     recordsApi.getRecord(id)
@@ -95,15 +97,10 @@ export default function RecordDetail() {
   }, [record, id, tab])
 
   const handleDownload = async () => {
-    const version = record?.latestVersion
-    if (!version) return
-    const { data } = await recordsApi.downloadVersion(id, String(version.id), false)
-    const url = URL.createObjectURL(data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = version.fileName ?? version.file_name ?? 'download'
-    a.click()
-    URL.revokeObjectURL(url)
+    const version = record?.latestVersion ?? record?.latest_version
+    if (!version || !record) return
+    const fileName = version.fileName ?? version.file_name ?? record.title ?? 'download'
+    await queueDownload(id, fileName, String(version.id))
   }
 
   const toggleStar = async () => {

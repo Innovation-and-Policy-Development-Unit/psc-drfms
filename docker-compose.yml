@@ -78,6 +78,7 @@ services:
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
+      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-psc_drfms_oo_secret_change_in_prod}
       ONLYOFFICE_PUBLIC_URL: ${ONLYOFFICE_PUBLIC_URL:-http://localhost:8082}
     volumes:
       - ./backend:/app

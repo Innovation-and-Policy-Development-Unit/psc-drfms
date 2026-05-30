@@ -89,11 +89,15 @@ class OnlyOfficeConfigView(APIView):
         }
 
         secret = settings.ONLYOFFICE_JWT_SECRET
+        token = None
         if secret:
-            config['token'] = jwt.encode({'payload': config}, secret, algorithm='HS256')
+            # ONLYOFFICE browser JWT must sign the config object directly (not wrapped in "payload").
+            signed = jwt.encode(config, secret, algorithm='HS256')
+            token = signed.decode('utf-8') if isinstance(signed, bytes) else signed
 
         return Response({
             **config,
+            'token': token,
             'editor_api_url': f"{settings.ONLYOFFICE_PUBLIC_URL}/web-apps/apps/api/documents/api.js",
         })
 

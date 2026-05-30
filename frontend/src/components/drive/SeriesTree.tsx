@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
+import { Folder, ChevronRight, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
-import { FolderOpen, ChevronRight, ChevronDown } from 'lucide-react'
-import { recordsApi } from '../../api'
+import { recordsApi } from '@/api'
+import type { RecordSeries } from '@/types/api'
 
-function SeriesNode({ node, all, depth, selectedId, onSelect }) {
-  const children = all.filter(s => s.parent === node.id)
+interface SeriesNodeProps {
+  node: RecordSeries
+  all: RecordSeries[]
+  depth: number
+  selectedId: string
+  onSelect: (id: number | null) => void
+  collapsed?: boolean
+}
+
+function SeriesNode({ node, all, depth, selectedId, onSelect, collapsed }: SeriesNodeProps) {
+  const children = all.filter((s) => s.parent === node.id)
   const [open, setOpen] = useState(depth < 1)
   const hasChildren = children.length > 0
 
@@ -14,31 +24,27 @@ function SeriesNode({ node, all, depth, selectedId, onSelect }) {
       <button
         type="button"
         onClick={() => onSelect(node.id)}
-        className={clsx(
-          'w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-start transition-colors',
-          selectedId === String(node.id)
-            ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/80 dark:hover:bg-slate-700/60'
-        )}
-        style={{ paddingLeft: `${6 + depth * 10}px` }}
+        className={clsx('drive-tree-item', selectedId === String(node.id) && 'active')}
+        style={{ paddingLeft: collapsed ? undefined : `${8 + depth * 12}px` }}
+        title={node.name}
       >
-        {hasChildren ? (
+        {hasChildren && !collapsed ? (
           <span
             role="button"
             tabIndex={0}
-            onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-            onKeyDown={e => e.key === 'Enter' && setOpen(o => !o)}
+            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}
+            onKeyDown={(e) => e.key === 'Enter' && setOpen((o) => !o)}
             className="p-0.5 shrink-0"
           >
             {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           </span>
         ) : (
-          <span className="w-4 shrink-0" />
+          <span className={clsx('shrink-0', collapsed ? 'w-0' : 'w-4')} />
         )}
-        <FolderOpen size={13} className="shrink-0 opacity-70" />
-        <span className="truncate">{node.name}</span>
+        <Folder size={14} className="shrink-0 opacity-70" />
+        <span className="drive-tree-label truncate">{node.name}</span>
       </button>
-      {open && children.map(child => (
+      {open && !collapsed && children.map((child) => (
         <SeriesNode
           key={child.id}
           node={child}
@@ -52,22 +58,30 @@ function SeriesNode({ node, all, depth, selectedId, onSelect }) {
   )
 }
 
-export default function SeriesTree({ onNavigate }) {
+interface SeriesTreeProps {
+  onNavigate?: () => void
+  collapsed?: boolean
+}
+
+export default function SeriesTree({ onNavigate, collapsed }: SeriesTreeProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const [series, setSeries] = useState([])
+  const [series, setSeries] = useState<RecordSeries[]>([])
   const selectedId = location.pathname === '/browse' ? (searchParams.get('record_series') || '') : ''
 
   useEffect(() => {
     recordsApi.getRecordSeries()
-      .then(({ data }) => setSeries(data.results || data))
-      .catch(console.error)
+      .then(({ data }) => {
+        const list = 'results' in data && data.results ? data.results : (data as RecordSeries[])
+        setSeries(list)
+      })
+      .catch(() => {})
   }, [])
 
-  const roots = series.filter(s => !s.parent)
+  const roots = series.filter((s) => !s.parent)
 
-  const selectSeries = (id) => {
+  const selectSeries = (id: number | null) => {
     onNavigate?.()
     if (id) {
       navigate(`/browse?record_series=${id}&page=1`)
@@ -76,25 +90,24 @@ export default function SeriesTree({ onNavigate }) {
     }
   }
 
+  if (collapsed) return null
+
   return (
-    <div className="px-2 pb-2">
-      <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-        Libraries
-      </p>
+    <div className="px-2 pb-2 pt-2">
+      <p className="drive-tree-label px-2 py-1 label-overline">Record series</p>
       <button
         type="button"
         onClick={() => selectSeries(null)}
         className={clsx(
-          'w-full flex items-center gap-2 px-2 py-1 rounded-md text-xs mb-0.5',
-          !selectedId && location.pathname === '/browse'
-            ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/40 dark:text-primary-200'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/80 dark:hover:bg-slate-700/60'
+          'drive-tree-item w-full',
+          !selectedId && location.pathname === '/browse' && 'active',
         )}
       >
-        <FolderOpen size={13} />
-        All documents
+        <span className="w-4 shrink-0" />
+        <Folder size={14} className="shrink-0 opacity-70" />
+        <span className="drive-tree-label truncate">All documents</span>
       </button>
-      {roots.map(root => (
+      {roots.map((root) => (
         <SeriesNode
           key={root.id}
           node={root}

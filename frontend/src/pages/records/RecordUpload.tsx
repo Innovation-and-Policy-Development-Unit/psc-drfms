@@ -1,12 +1,14 @@
-import { useState, useRef, FormEvent, DragEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { isAxiosError } from 'axios'
+import { useState, useRef, FormEvent, DragEvent, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { UploadCloud, X, FileUp } from 'lucide-react'
 import clsx from 'clsx'
-import { recordsApi } from '@/api'
+import { useDriveUI } from '@/context/DriveUIContext'
+import { useTransfers } from '@/context/TransferContext'
 import { PageShell } from '@/components/ui/PageShell'
 import { Panel } from '@/components/ui/Panel'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { formatFileSize } from '@/utils/fileType'
 import {
   CLASSIFICATION_OPTIONS,
   DOCUMENT_TYPE_OPTIONS,
@@ -14,11 +16,11 @@ import {
 
 export default function RecordUpload() {
   const navigate = useNavigate()
+  const { consumePendingUploadFile, openUploadDialog } = useDriveUI()
+  const { queueUpload } = useTransfers()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [dragging, setDragging] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -31,109 +33,115 @@ export default function RecordUpload() {
     change_summary: 'Initial upload',
   })
 
+  useEffect(() => {
+    const pending = consumePendingUploadFile()
+    if (pending) setFiles([pending])
+  }, [consumePendingUploadFile])
+
+  const addFiles = (list: FileList | File[]) => {
+    setFiles((prev) => [...prev, ...Array.from(list)])
+    if (!form.title && list[0]) {
+      setForm((f) => ({ ...f, title: list[0].name.replace(/\.[^.]+$/, '') }))
+    }
+  }
+
   const handleDrop = (e: DragEvent) => {
     e.preventDefault()
     setDragging(false)
-    const dropped = e.dataTransfer.files[0]
-    if (dropped) setFile(dropped)
+    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (!file) {
-      setError('Please select a file to upload.')
-      return
-    }
-    setLoading(true)
-    setError('')
+    if (files.length === 0) return
 
-    const fd = new FormData()
-    fd.append('file', file)
-    Object.entries(form).forEach(([k, v]) => {
-      if (v !== '' && v !== null && v !== undefined) fd.append(k, String(v))
-    })
-
-    try {
-      const { data } = await recordsApi.createRecord(fd)
-      navigate(`/document/${data.id}`)
-    } catch (err) {
-      if (isAxiosError(err)) {
-        setError(String(err.response?.data?.detail ?? JSON.stringify(err.response?.data) ?? 'Upload failed.'))
-      } else {
-        setError('Upload failed.')
-      }
-    } finally {
-      setLoading(false)
+    const metadata = {
+      title: form.title || undefined,
+      description: form.description,
+      document_type: form.document_type,
+      classification_level: form.classification_level,
+      originating_ministry: form.originating_ministry,
+      document_date: form.document_date,
+      physical_file_ref: form.physical_file_ref,
+      is_vital: form.is_vital,
+      change_summary: form.change_summary,
     }
+
+    if (files.length === 1) {
+      queueUpload(files[0], { ...metadata, title: form.title || files[0].name.replace(/\.[^.]+$/, '') })
+    } else {
+      files.forEach((file) => queueUpload(file, metadata))
+    }
+
+    navigate('/browse')
   }
 
   return (
     <PageShell
-      title="Upload record"
-      subtitle="Add a file to the registry. OCR and indexing run automatically."
+      title="Upload"
+      breadcrumbs={[{ label: 'Upload' }]}
+      action={
+        <button type="button" className="btn-ghost btn-sm" onClick={() => openUploadDialog()}>
+          Quick upload dialog
+        </button>
+      }
     >
-      {error && <div className="alert-danger text-sm">{error}</div>}
-
-      <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
+      <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
         <div
-          role="button"
-          tabIndex={0}
-          className={clsx(
-            'panel border-2 border-dashed text-center cursor-pointer py-10 p-4',
-            dragging ? 'border-[var(--brand-navy)] bg-[var(--surface-sunken)]' : 'border-registry',
-          )}
+          className={clsx('mega-upload-page-zone', dragging && 'dragging')}
           onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
-          onKeyDown={(e) => { if (e.key === 'Enter') fileRef.current?.click() }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && fileRef.current?.click()}
         >
           <input
             ref={fileRef}
             type="file"
+            multiple
             className="hidden"
             accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.tiff"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => e.target.files && addFiles(e.target.files)}
           />
-          {file ? (
-            <div className="space-y-1">
-              <p className="font-medium">{file.name}</p>
-              <p className="text-sm text-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setFile(null) }}
-                className="btn-ghost btn-sm mt-2"
-              >
-                Remove
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p className="text-secondary">Drop a file here or click to browse</p>
-              <p className="text-xs text-muted mt-1">PDF, Word, TIFF, JPG, PNG</p>
-            </div>
-          )}
+          <UploadCloud size={56} strokeWidth={1.25} className="mega-upload-cloud" />
+          <p className="font-medium text-lg mt-4">Select files to upload</p>
+          <p className="text-sm text-muted mt-1">or drag and drop into Cloud Drive</p>
         </div>
 
+        {files.length > 0 && (
+          <Panel className="p-0 mb-6 overflow-hidden">
+            <div className="px-4 py-2 border-b border-registry label-overline">Upload queue</div>
+            <ul>
+              {files.map((f, i) => (
+                <li key={`${f.name}-${i}`} className="mega-upload-queue-item mx-2 my-1">
+                  <FileUp size={16} className="text-muted shrink-0" />
+                  <span className="flex-1 truncate">{f.name}</span>
+                  <span className="text-xs text-muted tabular-nums">{formatFileSize(f.size)}</span>
+                  <button type="button" className="transfer-icon-btn" onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}>
+                    <X size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        )}
+
         <Panel className="space-y-4">
-          <h2 className="font-serif text-base font-semibold">Record metadata</h2>
+          <h2 className="font-semibold text-sm">Record metadata {files.length > 1 && '(applied to all files)'}</h2>
 
           <Input
             label="Title"
-            required
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Document title"
+            placeholder={files[0]?.name.replace(/\.[^.]+$/, '') ?? 'Document title'}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label-overline block mb-2">Document type</label>
-              <select
-                className="input"
-                value={form.document_type}
-                onChange={(e) => setForm((f) => ({ ...f, document_type: e.target.value }))}
-              >
+              <select className="input" value={form.document_type} onChange={(e) => setForm((f) => ({ ...f, document_type: e.target.value }))}>
                 {DOCUMENT_TYPE_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -141,11 +149,7 @@ export default function RecordUpload() {
             </div>
             <div>
               <label className="label-overline block mb-2">Classification</label>
-              <select
-                className="input"
-                value={form.classification_level}
-                onChange={(e) => setForm((f) => ({ ...f, classification_level: e.target.value }))}
-              >
+              <select className="input" value={form.classification_level} onChange={(e) => setForm((f) => ({ ...f, classification_level: e.target.value }))}>
                 {CLASSIFICATION_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
@@ -154,52 +158,28 @@ export default function RecordUpload() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Originating ministry"
-              value={form.originating_ministry}
-              onChange={(e) => setForm((f) => ({ ...f, originating_ministry: e.target.value }))}
-              placeholder="e.g. Ministry of Finance"
-            />
-            <Input
-              label="Document date"
-              type="date"
-              value={form.document_date}
-              onChange={(e) => setForm((f) => ({ ...f, document_date: e.target.value }))}
-            />
+            <Input label="Originating ministry" value={form.originating_ministry} onChange={(e) => setForm((f) => ({ ...f, originating_ministry: e.target.value }))} />
+            <Input label="Document date" type="date" value={form.document_date} onChange={(e) => setForm((f) => ({ ...f, document_date: e.target.value }))} />
           </div>
 
-          <Input
-            label="Physical file reference"
-            value={form.physical_file_ref}
-            onChange={(e) => setForm((f) => ({ ...f, physical_file_ref: e.target.value }))}
-            placeholder="e.g. Box 12, Shelf C3"
-          />
+          <Input label="Physical file reference" value={form.physical_file_ref} onChange={(e) => setForm((f) => ({ ...f, physical_file_ref: e.target.value }))} />
 
           <div>
             <label className="label-overline block mb-2">Description</label>
-            <textarea
-              rows={3}
-              className="input resize-none"
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              placeholder="Brief description…"
-            />
+            <textarea rows={3} className="input resize-none" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </div>
 
           <label className="flex items-start gap-2 cursor-pointer text-sm text-secondary">
-            <input
-              type="checkbox"
-              checked={form.is_vital}
-              onChange={(e) => setForm((f) => ({ ...f, is_vital: e.target.checked }))}
-              className="mt-1"
-            />
-            Mark as vital record (excluded from automated retention/destruction)
+            <input type="checkbox" checked={form.is_vital} onChange={(e) => setForm((f) => ({ ...f, is_vital: e.target.checked }))} className="mt-1" />
+            Mark as vital record
           </label>
         </Panel>
 
-        <div className="flex gap-3 justify-end">
-          <Button variant="secondary" type="button" onClick={() => navigate(-1)}>Cancel</Button>
-          <Button type="submit" disabled={loading}>{loading ? 'Uploading…' : 'Upload record'}</Button>
+        <div className="flex gap-3 justify-end mt-6">
+          <Link to="/browse" className="btn-secondary btn-sm">Cancel</Link>
+          <Button type="submit" disabled={files.length === 0}>
+            Upload {files.length > 0 ? `(${files.length})` : ''}
+          </Button>
         </div>
       </form>
     </PageShell>

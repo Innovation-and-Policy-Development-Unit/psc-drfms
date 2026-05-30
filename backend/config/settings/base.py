@@ -292,7 +292,7 @@ DEFAULT_RETENTION_YEARS = 7
 LEGAL_HOLD_NOTIFICATION_DAYS_BEFORE = 30
 
 # OnlyOffice Document Server
-ONLYOFFICE_JWT_SECRET = env('ONLYOFFICE_JWT_SECRET', default='onlyoffice_dev_secret_change_in_prod')
+ONLYOFFICE_JWT_SECRET = env('ONLYOFFICE_JWT_SECRET', default='psc_drfms_oo_secret_change_in_prod')
 # Internal Docker hostname backend uses when building callback/document URLs for OnlyOffice
 ONLYOFFICE_BACKEND_INTERNAL_URL = env('ONLYOFFICE_BACKEND_INTERNAL_URL', default='http://backend:8000')
 # Browser-accessible URL of the OnlyOffice server (used to load the JS SDK)

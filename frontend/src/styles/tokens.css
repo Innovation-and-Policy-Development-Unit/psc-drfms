@@ -1,43 +1,44 @@
-/* PSC-DRFMS Registry — design tokens (palette, motion, spacing) */
+/* MEGA.nz cloud drive theme — red accent, dark sidebar, light content */
 
 :root {
-  /* Surfaces */
-  --surface-base: #F7F6F4;
+  --surface-base: #F5F5F5;
   --surface-raised: #FFFFFF;
-  --surface-sunken: #EFEEEA;
-  --border-default: #E3E1DC;
-  --border-strong: #C9C6BE;
+  --surface-sunken: #EEEEEE;
+  --surface-sidebar: #333333;
+  --surface-sidebar-hover: #444444;
+  --surface-sidebar-active: #4a4a4a;
+  --border-default: #DDDDDD;
+  --border-strong: #CCCCCC;
 
-  /* Brand — single fixed institutional palette */
-  --brand-navy: #004276;
-  --brand-navy-muted: #1A5A8A;
-  --brand-accent: #004276;
-  --brand-forest: #1B6B4A;
-  --brand-forest-muted: #3D9970;
+  --brand-mega: #D9272E;
+  --brand-mega-hover: #C21F26;
+  --brand-mega-muted: #FAD4D6;
+  --brand-navy: #D9272E;
+  --brand-navy-muted: #C21F26;
+  --brand-accent: #D9272E;
+  --brand-forest: #31C48D;
+  --brand-forest-muted: #DEF7EC;
 
-  /* Text */
-  --text-primary: #1A1A18;
-  --text-secondary: #4A4A45;
-  --text-muted: #6B6B66;
+  --text-primary: #222222;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --text-sidebar: #E8E8E8;
+  --text-sidebar-muted: #AAAAAA;
 
-  /* Semantic */
-  --status-warning-bg: #FEF9E7;
-  --status-warning-fg: #9A6700;
-  --status-danger-bg: #FDF0F2;
-  --status-danger-fg: #9B2335;
-  --status-success-bg: #EDF7F2;
-  --status-success-fg: #1B6B4A;
+  --status-warning-bg: #FFF8E1;
+  --status-warning-fg: #F57C00;
+  --status-danger-bg: #FFEBEE;
+  --status-danger-fg: #D9272E;
+  --status-success-bg: #E8F5E9;
+  --status-success-fg: #2E7D32;
 
-  /* Motion */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 120ms;
   --duration-normal: 200ms;
 
-  /* Shape */
   --radius-sm: 4px;
   --radius-md: 6px;
 
-  /* Layout — 4px base unit */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -46,40 +47,46 @@
   --gutter-mobile: 16px;
   --gutter-desktop: 24px;
 
-  /* Tailwind primary scale (navy) */
-  --p-50: 240 247 255;
-  --p-100: 220 236 252;
-  --p-200: 180 213 245;
-  --p-300: 130 183 230;
-  --p-400: 70 140 205;
-  --p-500: 0 66 118;
-  --p-600: 0 56 102;
-  --p-700: 0 47 86;
-  --p-800: 0 38 70;
-  --p-900: 0 30 56;
+  --p-50: 255 241 241;
+  --p-100: 254 226 226;
+  --p-200: 254 202 202;
+  --p-300: 252 165 165;
+  --p-400: 239 68 68;
+  --p-500: 217 39 46;
+  --p-600: 194 31 38;
+  --p-700: 163 28 32;
+  --p-800: 127 29 29;
+  --p-900: 91 22 22;
 }
 
 .dark {
-  --surface-base: #141413;
-  --surface-raised: #1C1C1A;
-  --surface-sunken: #0F0F0E;
-  --border-default: #2E2E2B;
-  --border-strong: #454542;
+  --surface-base: #1A1A1A;
+  --surface-raised: #242424;
+  --surface-sunken: #141414;
+  --surface-sidebar: #1E1E1E;
+  --surface-sidebar-hover: #2A2A2A;
+  --surface-sidebar-active: #333333;
+  --border-default: #3A3A3A;
+  --border-strong: #4A4A4A;
 
-  --brand-accent: #5B9BD5;
+  --brand-accent: #F0373A;
+  --brand-navy: #F0373A;
+  --brand-navy-muted: #D9272E;
 
-  --text-primary: #EDEDEA;
-  --text-secondary: #B8B8B2;
-  --text-muted: #9C9C96;
+  --text-primary: #F0F0F0;
+  --text-secondary: #BBBBBB;
+  --text-muted: #888888;
+  --text-sidebar: #E0E0E0;
+  --text-sidebar-muted: #999999;
 
   --status-warning-bg: #2A2410;
-  --status-warning-fg: #D4A72C;
+  --status-warning-fg: #FFB74D;
   --status-danger-bg: #2A1418;
-  --status-danger-fg: #E57373;
+  --status-danger-fg: #F0373A;
   --status-success-bg: #142A20;
-  --status-success-fg: #3D9970;
+  --status-success-fg: #31C48D;
 
-  --p-400: 91 155 213;
-  --p-500: 91 155 213;
-  --p-600: 70 130 190;
+  --p-400: 240 55 58;
+  --p-500: 240 55 58;
+  --p-600: 217 39 46;
 }

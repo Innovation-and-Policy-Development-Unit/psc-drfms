@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Search, Menu } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { useNotifications } from '@/context/NotificationContext'
+import { useDriveUI } from '@/context/DriveUIContext'
 import { notificationsApi } from '@/api'
 import type { NotificationItem } from '@/types/api'
 import Logo from '../shared/Logo'
 import clsx from 'clsx'
-import { Menu } from 'lucide-react'
 
 interface DriveTopBarProps {
   onMenuClick?: () => void
@@ -18,6 +19,7 @@ export default function DriveTopBar({ onMenuClick, onSearch }: DriveTopBarProps)
   const { user, logout } = useAuth()
   const { isDark, toggleDark } = useTheme()
   const { unreadCount = 0 } = useNotifications() ?? {}
+  const { toggleSidebar, openUploadDialog } = useDriveUI()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [userOpen, setUserOpen] = useState(false)
@@ -65,83 +67,77 @@ export default function DriveTopBar({ onMenuClick, onSearch }: DriveTopBarProps)
   }
 
   const openNotif = (n: NotificationItem) => {
-    const isRead = n.isRead ?? (n as { is_read?: boolean }).is_read
+    const isRead = n.isRead ?? n.is_read
     if (!isRead) notificationsApi.markRead(String(n.id)).catch(() => {})
     setNotifOpen(false)
-    const relatedUrl = n.relatedUrl ?? (n as { related_url?: string }).related_url
-    const relatedRecord = n.relatedRecord ?? (n as { related_record?: string }).related_record
+    const relatedUrl = n.relatedUrl ?? n.related_url
+    const relatedRecord = n.relatedRecord ?? n.related_record
     const url = relatedUrl || (relatedRecord ? `/document/${relatedRecord}` : '/')
     navigate(url.startsWith('/') ? url : `/${url}`)
   }
 
   return (
-    <header className="h-12 shrink-0 flex items-center gap-3 px-3 sm:px-4 border-b border-registry bg-surface">
+    <header className="h-14 shrink-0 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 border-b border-registry bg-raised z-20">
       <button
         type="button"
         onClick={onMenuClick}
-        className="lg:hidden p-2 -ms-1 rounded-sm hover:bg-[var(--bg-muted)] text-muted"
+        className="lg:hidden p-2 -ms-1 rounded-md hover:bg-[var(--surface-sunken)] text-muted"
         aria-label="Menu"
+      >
+        <Menu size={20} />
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="hidden lg:flex p-2 rounded-md hover:bg-[var(--surface-sunken)] text-muted"
+        aria-label="Toggle sidebar"
       >
         <Menu size={18} />
       </button>
 
-      <Link to="/" className="flex items-center gap-2 shrink-0 hover:opacity-90 transition-opacity">
-        <Logo size={26} />
-        <span className="hidden sm:block font-serif text-sm font-semibold text-[var(--text-primary)]">
-          PSC Registry
-        </span>
+      <Link to="/" className="flex items-center gap-2 shrink-0 hover:opacity-90 transition-opacity me-1">
+        <Logo size={28} />
       </Link>
 
-      <form onSubmit={handleSearch} className="flex-1 max-w-xl mx-auto hidden sm:block">
+      <form onSubmit={handleSearch} className="drive-search-pill flex-1 mx-auto max-w-2xl">
+        <Search size={16} className="drive-search-icon" />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search records…"
-          className="input h-9 text-sm w-full"
+          placeholder="Search in Cloud Drive"
+          className="w-full"
         />
       </form>
 
-      <div className="flex items-center gap-1 shrink-0 ms-auto">
+      <div className="flex items-center gap-1 shrink-0">
         <button
           type="button"
-          onClick={() => navigate('/upload')}
-          className="hidden sm:inline-flex btn-primary btn-sm"
+          onClick={() => openUploadDialog()}
+          className="hidden sm:inline-flex btn-primary btn-sm rounded-full px-4"
         >
           Upload
         </button>
 
-        <button
-          type="button"
-          onClick={toggleDark}
-          className="btn-ghost btn-sm text-xs hidden sm:inline-flex"
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        >
+        <button type="button" onClick={toggleDark} className="btn-ghost btn-sm text-xs hidden md:inline-flex">
           {isDark ? 'Light' : 'Dark'}
         </button>
 
         <div className="relative" ref={notifRef}>
-          <button
-            type="button"
-            onClick={() => setNotifOpen((o) => !o)}
-            className="btn-ghost btn-sm relative text-xs"
-          >
+          <button type="button" onClick={() => setNotifOpen((o) => !o)} className="btn-ghost btn-sm relative text-xs">
             Inbox
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -end-0.5 min-w-[16px] h-4 px-1 bg-[var(--brand-navy)] text-white text-[10px] font-medium rounded-sm flex items-center justify-center tabular-nums">
+              <span className="absolute -top-0.5 -end-0.5 min-w-[16px] h-4 px-1 text-white text-[10px] font-medium rounded-full flex items-center justify-center tabular-nums" style={{ background: 'var(--brand-mega)' }}>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
           {notifOpen && (
-            <div className="absolute end-0 top-full mt-1 w-80 panel z-50 p-0 overflow-hidden">
+            <div className="absolute end-0 top-full mt-1 w-80 panel z-50 p-0 overflow-hidden shadow-lg">
               <div className="flex items-center justify-between px-4 py-3 border-b border-registry">
                 <span className="text-sm font-medium">Notifications</span>
-                <button
-                  type="button"
-                  onClick={() => notificationsApi.markAllRead().then(() => setNotifications([]))}
-                  className="text-xs text-[var(--brand-navy)] hover:underline"
-                >
+                <button type="button" onClick={() => notificationsApi.markAllRead().then(() => setNotifications([]))} className="text-xs text-[var(--brand-navy)] hover:underline">
                   Mark all read
                 </button>
               </div>
@@ -150,15 +146,15 @@ export default function DriveTopBar({ onMenuClick, onSearch }: DriveTopBarProps)
                   <p className="p-4 text-sm text-muted text-center">No new notifications</p>
                 ) : (
                   notifications.map((n) => {
-                    const isRead = n.isRead ?? (n as { is_read?: boolean }).is_read
+                    const isRead = n.isRead ?? n.is_read
                     return (
                       <button
                         key={n.id}
                         type="button"
                         onClick={() => openNotif(n)}
                         className={clsx(
-                          'w-full text-start px-4 py-3 border-b border-registry last:border-0 hover:bg-[var(--bg-muted)] transition-colors',
-                          !isRead && 'bg-[var(--bg-accent)]',
+                          'w-full text-start px-4 py-3 border-b border-registry last:border-0 hover:bg-[var(--surface-sunken)]',
+                          !isRead && 'bg-[var(--surface-sunken)]',
                         )}
                       >
                         <p className="text-sm font-medium truncate">{n.title}</p>
@@ -169,11 +165,7 @@ export default function DriveTopBar({ onMenuClick, onSearch }: DriveTopBarProps)
                 )}
               </div>
               <div className="p-2 border-t border-registry">
-                <button
-                  type="button"
-                  onClick={() => { setNotifOpen(false); navigate('/inbox') }}
-                  className="w-full text-center text-xs text-[var(--brand-navy)] hover:underline py-1.5"
-                >
+                <button type="button" onClick={() => { setNotifOpen(false); navigate('/inbox') }} className="w-full text-center text-xs text-[var(--brand-navy)] hover:underline py-1.5">
                   View all
                 </button>
               </div>
@@ -182,48 +174,27 @@ export default function DriveTopBar({ onMenuClick, onSearch }: DriveTopBarProps)
         </div>
 
         <div className="relative" ref={userRef}>
-          <button
-            type="button"
-            onClick={() => setUserOpen((o) => !o)}
-            className="flex items-center gap-2 p-1 rounded-sm hover:bg-[var(--bg-muted)]"
-          >
-            <div className="w-7 h-7 rounded-sm bg-[var(--brand-navy)] flex items-center justify-center text-white text-[10px] font-semibold">
+          <button type="button" onClick={() => setUserOpen((o) => !o)} className="flex items-center p-1 rounded-full hover:bg-[var(--surface-sunken)]">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-semibold" style={{ background: 'var(--brand-mega)' }}>
               {initials}
             </div>
           </button>
           {userOpen && (
-            <div className="absolute end-0 top-full mt-1 w-52 panel py-1 z-50">
+            <div className="absolute end-0 top-full mt-1 w-52 panel py-1 z-50 shadow-lg">
               <div className="px-4 py-3 border-b border-registry">
                 <p className="text-sm font-medium truncate">{displayName}</p>
-                <p className="text-xs text-muted truncate capitalize mt-0.5">
-                  {user?.role?.replace(/_/g, ' ')}
-                </p>
+                <p className="text-xs text-muted truncate capitalize mt-0.5">{user?.role?.replace(/_/g, ' ')}</p>
               </div>
               <div className="py-1">
-                <button
-                  type="button"
-                  onClick={() => { setUserOpen(false); navigate('/inbox') }}
-                  className="w-full text-start px-4 py-2 text-sm hover:bg-[var(--bg-muted)]"
-                >
-                  Inbox
-                  {unreadCount > 0 && (
-                    <span className="float-end text-[10px] tabular-nums text-muted">{unreadCount}</span>
-                  )}
+                <button type="button" onClick={() => { setUserOpen(false); navigate('/inbox') }} className="w-full text-start px-4 py-2 text-sm hover:bg-[var(--surface-sunken)]">
+                  Inbox {unreadCount > 0 && <span className="float-end text-muted tabular-nums">{unreadCount}</span>}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setUserOpen(false); navigate('/auth/two-factor') }}
-                  className="w-full text-start px-4 py-2 text-sm hover:bg-[var(--bg-muted)]"
-                >
+                <button type="button" onClick={() => { setUserOpen(false); navigate('/auth/two-factor') }} className="w-full text-start px-4 py-2 text-sm hover:bg-[var(--surface-sunken)]">
                   Security / 2FA
                 </button>
               </div>
               <div className="py-1 border-t border-registry">
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full text-start px-4 py-2 text-sm text-[var(--status-danger-fg)] hover:bg-[var(--bg-muted)]"
-                >
+                <button type="button" onClick={handleLogout} className="w-full text-start px-4 py-2 text-sm text-[var(--status-danger-fg)] hover:bg-[var(--surface-sunken)]">
                   Sign out
                 </button>
               </div>

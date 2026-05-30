@@ -36,10 +36,10 @@
 
   .btn-primary {
     @apply btn text-white;
-    background: var(--brand-navy);
+    background: var(--brand-mega);
   }
   .btn-primary:hover:not(:disabled) {
-    background: var(--brand-navy-muted);
+    background: var(--brand-mega-hover);
   }
   .dark .btn-primary {
     background: rgb(var(--p-500));
@@ -101,8 +101,8 @@
     color: var(--text-primary);
   }
   .nav-link.active {
-    color: var(--brand-accent);
-    border-left-color: var(--brand-accent);
+    color: var(--brand-mega);
+    border-left-color: var(--brand-mega);
     background: var(--surface-sunken);
     font-weight: 500;
   }

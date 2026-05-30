@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { Cloud, Star, Clock, Upload, Search, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { recordsApi, workflowApi, notificationsApi, unwrapList } from '@/api'
 import type { RecordListItem, WorkflowAction } from '@/types/api'
-import { Panel } from '@/components/ui/Panel'
+import { RecordGridCard } from '@/components/documents/RecordGridCard'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 
 const OFFICER = ['records_officer', 'director', 'commissioner', 'administrator']
 const NO_RO = ['reviewer', 'records_officer', 'director', 'commissioner', 'administrator']
+
+const QUICK_LINKS = [
+  { to: '/browse', label: 'Cloud Drive', icon: Cloud },
+  { to: '/starred', label: 'Starred', icon: Star },
+  { to: '/recent', label: 'Recent', icon: Clock },
+  { to: '/shared-with-me', label: 'Shared', icon: Users },
+  { to: '/search', label: 'Search', icon: Search },
+  { to: '/upload', label: 'Upload', icon: Upload, officerOnly: true },
+]
 
 interface ActivityItem {
   id: string
@@ -29,12 +39,12 @@ export default function DocumentsHome() {
   const role = user?.role ?? 'read_only'
   const isOfficer = OFFICER.includes(role)
   const canBrowse = NO_RO.includes(role)
-  const firstName = user?.firstName || 'there'
+  const firstName = user?.firstName || user?.first_name || 'there'
 
   useEffect(() => {
     const calls: Promise<unknown>[] = [notificationsApi.activity({ limit: 8 })]
     if (canBrowse) {
-      calls.push(recordsApi.getRecords({ page_size: 8, ordering: '-updated_at' }))
+      calls.push(recordsApi.getRecords({ page_size: 12, ordering: '-updated_at' }))
       calls.push(workflowApi.getMyTasks())
     }
 
@@ -56,9 +66,9 @@ export default function DocumentsHome() {
 
   if (role === 'read_only') {
     return (
-      <div className="space-y-6 animate-registry-in">
+      <div className="p-6 space-y-6 animate-registry-in max-w-3xl">
         <header>
-          <h1 className="font-serif text-xl font-semibold">Welcome, {firstName}</h1>
+          <h1 className="page-title">Welcome, {firstName}</h1>
           <p className="text-sm text-muted mt-1">Track requests and messages from the Public Service Commission.</p>
         </header>
         <div className="flex gap-3">
@@ -69,97 +79,103 @@ export default function DocumentsHome() {
     )
   }
 
+  const visibleLinks = QUICK_LINKS.filter((l) => !l.officerOnly || isOfficer)
+
   return (
-    <div className="space-y-6 animate-registry-in">
-      <header className="border-b border-registry pb-4">
-        <h1 className="page-title">Registry desk</h1>
-        <p className="text-sm text-muted mt-1">Good day, {firstName}. Your queue and recent filings.</p>
+    <div className="p-6 space-y-8 animate-registry-in">
+      <header>
+        <h1 className="page-title">Cloud Drive</h1>
+        <p className="text-sm text-muted mt-1">Good day, {firstName}. Your registry at a glance.</p>
       </header>
 
-      <div className="grid lg:grid-cols-[minmax(0,1.65fr)_minmax(260px,1fr)] gap-6">
-        <section className="space-y-4 min-w-0">
-          <div className="flex items-center justify-between">
-            <h2 className="label-overline">Pending approvals</h2>
-            <Link to="/workflows/my-tasks" className="text-xs text-[var(--brand-navy)] dark:text-[rgb(var(--p-500))] hover:underline">
-              View all
+      <section>
+        <h2 className="label-overline mb-3">Quick access</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {visibleLinks.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="drive-file-tile border border-registry rounded-md bg-raised hover:border-[var(--border-strong)]"
+            >
+              <div className="drive-tile-icon bg-[var(--surface-sunken)] text-[var(--brand-navy)]">
+                <Icon size={24} strokeWidth={1.75} />
+              </div>
+              <span className="drive-tile-name">{label}</span>
             </Link>
-          </div>
-          <Panel className="p-0">
-            {loading ? (
-              <div className="p-4"><Skeleton lines={4} /></div>
-            ) : tasks.length === 0 ? (
-              <p className="p-4 text-sm text-muted">No pending workflow actions.</p>
-            ) : (
-              <ul className="divide-y divide-[var(--border-default)]">
-                {tasks.map((task) => (
-                  <li key={task.id}>
-                    <Link
-                      to={task.instance ? `/workflows/${task.instance}` : '/workflows/my-tasks'}
-                      className="block px-4 py-3 hover:bg-[var(--surface-sunken)] transition-colors"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{task.stepName}</span>
-                        {task.isOverdue && <Badge tone="warning">Overdue</Badge>}
-                      </div>
-                      {task.daysRemaining != null && (
-                        <p className="text-xs text-muted mt-0.5">
-                          {task.daysRemaining >= 0 ? `${task.daysRemaining} days left` : `${Math.abs(task.daysRemaining)} days overdue`}
-                        </p>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
+          ))}
+        </div>
+      </section>
 
-          {isOfficer && (
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Link to="/upload" className="btn-primary btn-sm">Upload record</Link>
-              <Link to="/submissions/new" className="btn-secondary btn-sm">New submission</Link>
-              <Link to="/browse" className="btn-ghost btn-sm">Browse registry</Link>
+      <div className="grid lg:grid-cols-[1fr_280px] gap-8">
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="label-overline">Recent files</h2>
+            <Link to="/browse" className="text-xs text-[var(--brand-navy)] hover:underline">View all</Link>
+          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="h-32 rounded-md" />
+              ))}
+            </div>
+          ) : recent.length === 0 ? (
+            <p className="text-sm text-muted py-8 text-center border border-dashed border-registry rounded-md">
+              No recent records. <Link to="/upload" className="text-[var(--brand-navy)] hover:underline">Upload one</Link>
+            </p>
+          ) : (
+            <div className="drive-file-grid !p-0">
+              {recent.slice(0, 8).map((r) => (
+                <RecordGridCard key={r.id} record={r} />
+              ))}
             </div>
           )}
         </section>
 
-        <aside className="space-y-4">
-          <h2 className="label-overline">Recently updated</h2>
-          <Panel className="p-0">
+        <aside className="space-y-6">
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="label-overline">My tasks</h2>
+              <Link to="/workflows/my-tasks" className="text-xs text-[var(--brand-navy)] hover:underline">All</Link>
+            </div>
             {loading ? (
-              <div className="p-4"><Skeleton lines={5} /></div>
-            ) : recent.length === 0 ? (
-              <p className="p-4 text-sm text-muted">No recent records.</p>
+              <Skeleton lines={4} />
+            ) : tasks.length === 0 ? (
+              <p className="text-sm text-muted">No pending approvals.</p>
             ) : (
-              <ul className="divide-y divide-[var(--border-default)]">
-                {recent.map((r) => (
-                  <li key={r.id}>
-                    <Link to={`/document/${r.id}`} className="block px-4 py-2.5 hover:bg-[var(--surface-sunken)]">
-                      <p className="font-mono-ref text-[10px] text-muted">{r.referenceNumber}</p>
-                      <p className="text-sm truncate text-[var(--text-primary)]">{r.title}</p>
+              <ul className="space-y-2">
+                {tasks.map((task) => (
+                  <li key={task.id}>
+                    <Link
+                      to={task.instance ? `/workflows/${task.instance}` : '/workflows/my-tasks'}
+                      className="block panel-interactive px-3 py-2.5 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate">{task.stepName ?? task.step_name}</span>
+                        {task.isOverdue && <Badge tone="warning">Overdue</Badge>}
+                      </div>
                     </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </Panel>
+          </section>
 
-          <h2 className="label-overline">Activity</h2>
-          <Panel className="p-0 max-h-48 overflow-y-auto custom-scrollbar">
+          <section>
+            <h2 className="label-overline mb-3">Activity</h2>
             {activity.length === 0 ? (
-              <p className="p-4 text-sm text-muted">No recent activity.</p>
+              <p className="text-sm text-muted">No recent activity.</p>
             ) : (
-              <ul className="divide-y divide-[var(--border-default)]">
+              <ul className="space-y-1 text-sm">
                 {activity.slice(0, 5).map((item) => (
                   <li key={`${item.type}-${item.id}`}>
-                    <Link to={item.relatedUrl || '/inbox'} className="block px-4 py-2 text-sm hover:bg-[var(--surface-sunken)]">
-                      <p className="truncate font-medium">{item.title}</p>
-                      <p className="text-xs text-muted truncate">{item.message}</p>
+                    <Link to={item.relatedUrl || '/inbox'} className="block py-1.5 hover:text-[var(--brand-navy)] truncate">
+                      {item.title}
                     </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </Panel>
+          </section>
         </aside>
       </div>
     </div>

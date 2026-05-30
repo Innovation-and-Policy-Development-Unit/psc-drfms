@@ -1,0 +1,411 @@
+/* MEGA.nz cloud drive layout */
+
+@layer components {
+  .drive-shell {
+    @apply flex flex-1 min-h-0 min-w-0;
+  }
+
+  .drive-sidebar {
+    @apply shrink-0 flex flex-col h-full transition-[width] duration-200;
+    width: var(--drive-sidebar-width, 15rem);
+    background: var(--surface-sidebar);
+    border-right: 1px solid #2a2a2a;
+    color: var(--text-sidebar);
+  }
+  .drive-sidebar .btn-ghost {
+    color: var(--text-sidebar-muted);
+  }
+  .drive-sidebar .btn-ghost:hover {
+    background: var(--surface-sidebar-hover);
+    color: #fff;
+  }
+  .drive-sidebar.collapsed {
+    --drive-sidebar-width: 3.25rem;
+  }
+
+  .drive-nav-item {
+    @apply flex items-center gap-3 px-3 py-2 text-sm rounded-md mx-1.5;
+    color: var(--text-sidebar-muted);
+    transition: background-color var(--duration-fast) var(--ease-out-expo),
+                color var(--duration-fast) var(--ease-out-expo);
+  }
+  .drive-nav-item:hover {
+    background: var(--surface-sidebar-hover);
+    color: var(--text-sidebar);
+  }
+  .drive-nav-item.active {
+    background: var(--surface-sidebar-active);
+    color: #fff;
+    font-weight: 500;
+  }
+  .drive-nav-item.active svg {
+    color: var(--brand-mega);
+  }
+  .drive-sidebar.collapsed .drive-nav-label,
+  .drive-sidebar.collapsed .drive-section-label,
+  .drive-sidebar.collapsed .drive-tree-label {
+    @apply sr-only;
+  }
+  .drive-sidebar.collapsed .drive-nav-item {
+    @apply justify-center px-2;
+  }
+  .drive-sidebar .label-overline {
+    color: var(--text-sidebar-muted);
+  }
+
+  .drive-main {
+    @apply flex flex-col flex-1 min-w-0 min-h-0;
+    background: var(--surface-raised);
+  }
+
+  .drive-main-scroll {
+    @apply flex-1 min-h-0 overflow-auto custom-scrollbar;
+  }
+
+  .drive-toolbar {
+    @apply shrink-0 flex flex-wrap items-center gap-3 px-4 py-2.5 border-b;
+    border-color: var(--border-default);
+    background: var(--surface-raised);
+    min-height: 48px;
+  }
+
+  .drive-toolbar-path {
+    @apply flex items-center gap-1 text-sm min-w-0 flex-1;
+    color: var(--text-secondary);
+  }
+  .drive-toolbar-path a:hover {
+    color: var(--brand-mega);
+  }
+  .drive-toolbar-path strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .drive-view-toggle {
+    @apply inline-flex rounded overflow-hidden;
+    border: 1px solid var(--border-default);
+  }
+  .drive-view-toggle button {
+    @apply px-2.5 py-1.5 text-xs font-medium transition-colors;
+    color: var(--text-muted);
+  }
+  .drive-view-toggle button:hover {
+    background: var(--surface-sunken);
+  }
+  .drive-view-toggle button.active {
+    background: var(--brand-mega);
+    color: #fff;
+  }
+
+  .drive-search-pill input {
+    @apply w-full h-10 ps-10 pe-4 text-sm rounded-full;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+  }
+  .drive-search-pill input:focus {
+    outline: none;
+    border-color: var(--brand-mega);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-mega) 20%, transparent);
+  }
+
+  .drive-files-header {
+    @apply grid items-center gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide border-b sticky top-0 z-10 select-none;
+    color: var(--text-muted);
+    background: var(--surface-raised);
+    border-color: var(--border-default);
+  }
+
+  .drive-col-header {
+    @apply relative truncate pe-2;
+  }
+  .drive-col-resize {
+    @apply absolute top-0 end-0 w-1.5 h-full cursor-col-resize;
+  }
+  .drive-col-resize:hover {
+    background: var(--brand-mega);
+    opacity: 0.5;
+  }
+
+  .drive-file-row {
+    @apply grid items-center gap-2 px-4 py-2 border-b text-sm transition-colors cursor-default;
+    border-color: var(--border-default);
+    color: var(--text-secondary);
+  }
+  .drive-file-row:hover {
+    background: var(--surface-sunken);
+  }
+  .drive-file-row.selected {
+    background: color-mix(in srgb, var(--brand-mega) 10%, var(--surface-raised));
+  }
+
+  .drive-file-icon {
+    @apply w-10 h-10 rounded flex items-center justify-center shrink-0;
+  }
+
+  .drive-file-grid {
+    @apply grid gap-2 p-4;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+
+  .drive-file-tile {
+    @apply relative flex flex-col items-center text-center p-3 rounded border border-transparent transition-colors cursor-pointer;
+  }
+  .drive-file-tile:hover {
+    background: var(--surface-sunken);
+    border-color: var(--border-default);
+  }
+  .drive-file-tile.selected {
+    background: color-mix(in srgb, var(--brand-mega) 10%, var(--surface-raised));
+    border-color: var(--brand-mega);
+  }
+  .drive-tile-check {
+    @apply absolute top-2 start-2 w-4 h-4 rounded-sm;
+  }
+
+  .drive-statusbar {
+    @apply shrink-0 flex items-center justify-between gap-4 px-4 py-1.5 text-xs border-t;
+    color: var(--text-muted);
+    background: var(--surface-base);
+    border-color: var(--border-default);
+  }
+
+  .drive-drop-overlay {
+    @apply fixed inset-0 z-[100] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-200;
+    background: color-mix(in srgb, var(--brand-mega) 15%, transparent);
+  }
+  .drive-drop-overlay.visible {
+    @apply opacity-100 pointer-events-auto;
+  }
+  .drive-drop-panel {
+    @apply px-10 py-8 text-center max-w-md rounded-lg;
+    background: var(--surface-raised);
+    border: 2px dashed var(--brand-mega);
+  }
+
+  .drive-tree-item {
+    @apply flex items-center gap-1.5 w-full text-start px-2 py-1.5 text-xs rounded-md transition-colors;
+    color: var(--text-sidebar-muted);
+  }
+  .drive-tree-item:hover {
+    background: var(--surface-sidebar-hover);
+    color: var(--text-sidebar);
+  }
+  .drive-tree-item.active {
+    background: var(--surface-sidebar-active);
+    color: #fff;
+  }
+
+  .drive-context-menu {
+    @apply fixed z-[200] min-w-[180px] py-1 rounded-md shadow-lg;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-default);
+  }
+  .drive-context-item {
+    @apply block w-full text-start px-4 py-2 text-sm transition-colors;
+    color: var(--text-primary);
+  }
+  .drive-context-item:hover:not(:disabled) {
+    background: var(--surface-sunken);
+  }
+  .drive-context-item.danger {
+    color: var(--status-danger-fg);
+  }
+  .drive-context-item:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+
+  .drive-bulk-bar {
+    @apply shrink-0 flex flex-wrap items-center gap-3 px-4 py-2 border-b;
+    background: color-mix(in srgb, var(--brand-mega) 8%, var(--surface-raised));
+    border-color: var(--border-default);
+  }
+  .drive-bulk-btn {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors;
+    color: var(--text-primary);
+    background: var(--surface-raised);
+    border: 1px solid var(--border-default);
+  }
+  .drive-bulk-btn:hover {
+    border-color: var(--brand-mega);
+    color: var(--brand-mega);
+  }
+
+  .drive-empty {
+    @apply flex flex-col items-center justify-center py-16 px-6 text-center;
+  }
+  .drive-empty-icon {
+    @apply w-16 h-16 rounded-full flex items-center justify-center mb-4;
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+  }
+
+  .drive-page-body {
+    @apply flex-1 overflow-auto p-4 custom-scrollbar animate-registry-in;
+  }
+
+  /* MEGA transfer panel */
+  .transfer-panel {
+    @apply shrink-0 border-t;
+    border-color: var(--border-default);
+    background: var(--surface-raised);
+  }
+  .transfer-panel.open .transfer-table-wrap {
+    max-height: 220px;
+  }
+  .transfer-panel-header {
+    @apply flex flex-wrap items-center justify-between gap-2 px-4 py-2;
+    background: var(--surface-sunken);
+    border-bottom: 1px solid var(--border-default);
+  }
+  .transfer-panel-title {
+    @apply flex items-center gap-4 flex-wrap;
+  }
+  .transfer-summary {
+    @apply flex items-center gap-2 text-xs font-medium;
+  }
+  .transfer-ring {
+    @apply relative w-9 h-9 shrink-0;
+  }
+  .transfer-ring-icon {
+    @apply absolute inset-0 m-auto;
+    color: var(--brand-mega);
+  }
+  .transfer-panel-actions {
+    @apply flex items-center gap-1 flex-wrap;
+  }
+  .transfer-action-btn {
+    @apply inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded transition-colors;
+    color: var(--text-secondary);
+  }
+  .transfer-action-btn:hover:not(:disabled) {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+  }
+  .transfer-action-btn:disabled {
+    @apply opacity-40 cursor-not-allowed;
+  }
+  .transfer-action-btn.danger {
+    color: var(--status-danger-fg);
+  }
+  .transfer-table-wrap {
+    @apply overflow-auto custom-scrollbar;
+    max-height: 0;
+    transition: max-height 0.2s var(--ease-out-expo);
+  }
+  .transfer-table {
+    @apply w-full text-sm;
+  }
+  .transfer-table thead th {
+    @apply text-start px-3 py-2 text-[10px] font-semibold uppercase tracking-wide;
+    color: var(--text-muted);
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border-default);
+  }
+  .transfer-row td {
+    @apply px-3 py-2 align-middle border-b;
+    border-color: var(--border-default);
+  }
+  .transfer-row:hover {
+    background: var(--surface-sunken);
+  }
+  .transfer-file-icon {
+    @apply w-9 h-9 rounded flex items-center justify-center;
+  }
+  .transfer-name {
+    @apply truncate text-sm font-medium;
+    color: var(--text-primary);
+  }
+  .transfer-progress-track {
+    @apply h-1 rounded-full mt-1.5 overflow-hidden;
+    background: var(--surface-sunken);
+  }
+  .transfer-progress-fill {
+    @apply h-full rounded-full transition-all duration-150;
+    background: var(--brand-mega);
+  }
+  .transfer-status-ok {
+    @apply text-xs;
+    color: var(--status-success-fg);
+  }
+  .transfer-status-err {
+    @apply text-xs truncate max-w-[8rem];
+    color: var(--status-danger-fg);
+  }
+  .transfer-icon-btn {
+    @apply p-1 rounded hover:bg-[var(--surface-sunken)] text-muted;
+  }
+  .transfer-empty {
+    @apply flex flex-col items-center justify-center py-10;
+  }
+  .drive-statusbar-transfers {
+    @apply inline-flex items-center gap-2 px-2 py-1 rounded text-xs cursor-pointer transition-colors;
+  }
+  .drive-statusbar-transfers:hover {
+    background: var(--surface-sunken);
+  }
+  .drive-statusbar-transfers.active {
+    color: var(--brand-mega);
+  }
+  .status-mini-ring {
+    @apply w-4 h-4 rounded-full border-2;
+    border-color: var(--brand-mega);
+    border-top-color: transparent;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* MEGA upload dialog */
+  .mega-dialog-backdrop {
+    @apply fixed inset-0 z-[150] flex items-center justify-center p-4;
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .mega-dialog {
+    @apply w-full max-w-lg rounded-lg shadow-xl overflow-hidden;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-default);
+  }
+  .mega-dialog-header {
+    @apply flex items-center justify-between px-5 py-4 border-b;
+    border-color: var(--border-default);
+  }
+  .mega-dialog-body {
+    @apply px-5 py-4 space-y-3;
+  }
+  .mega-dialog-footer {
+    @apply flex justify-end gap-2 pt-2;
+  }
+  .mega-upload-zone {
+    @apply flex flex-col items-center justify-center py-12 px-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors text-center;
+    border-color: var(--border-default);
+    background: var(--surface-sunken);
+  }
+  .mega-upload-zone:hover,
+  .mega-upload-zone.dragging {
+    border-color: var(--brand-mega);
+    background: color-mix(in srgb, var(--brand-mega) 6%, var(--surface-sunken));
+  }
+  .mega-upload-cloud {
+    color: var(--brand-mega);
+  }
+  .mega-upload-queue {
+    @apply space-y-1 max-h-40 overflow-y-auto custom-scrollbar;
+  }
+  .mega-upload-queue-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded text-sm;
+    background: var(--surface-sunken);
+  }
+
+  .mega-upload-page-zone {
+    @apply flex flex-col items-center justify-center py-16 px-8 rounded-lg border-2 border-dashed cursor-pointer transition-colors text-center mb-6;
+    border-color: var(--border-default);
+    background: var(--surface-sunken);
+  }
+  .mega-upload-page-zone:hover,
+  .mega-upload-page-zone.dragging {
+    border-color: var(--brand-mega);
+    background: color-mix(in srgb, var(--brand-mega) 6%, var(--surface-sunken));
+  }
+}
