@@ -27,7 +27,9 @@ class WorkflowInstanceListView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsRecordsOfficerOrAbove]
 
     def get_queryset(self):
-        return WorkflowInstance.objects.select_related('record', 'template', 'initiated_by').prefetch_related('actions')
+        return WorkflowInstance.objects.select_related(
+            'record', 'template', 'initiated_by',
+        ).prefetch_related('actions__assigned_to')
 
     def perform_create(self, serializer):
         instance = serializer.save(initiated_by=self.request.user, status='in_progress')

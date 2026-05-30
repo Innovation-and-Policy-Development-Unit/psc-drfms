@@ -25,18 +25,9 @@
     "overdue_sla": "Fulap taem / SLA"
   },
   "settings": {
-    "title": "Setim Luk blong Dashboard",
-    "subtitle": "Jusum luk blong dashboard blong yu",
-    "color_mode": "Mod Kala",
-    "color_preset": "Kala blong yusum",
-    "layout": "Aaranjimaen",
-    "layout_description": "Navigation i yusum sidebar long screen we i bigwan. Long screen we i smolwan, yusum menu aikon blong opnem navigation.",
-    "regional": "Eria",
+    "title": "Setim",
+    "color_mode": "Mod kala",
     "language": "Langwis",
-    "rtl": "Direksen RTL",
-    "apply_close": "Aplae mo Klosem",
-    "live_preview": "Luk Laef",
-    "live_preview_description": "Olgeta jenj oli go stret long ful dashboard.",
     "light": "Waet",
     "dark": "Blak"
   },

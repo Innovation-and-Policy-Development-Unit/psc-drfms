@@ -59,7 +59,7 @@ services:
       JWT_HEADER: Authorization
       JWT_IN_HEADER: "true"
     ports:
-      - "8080:80"
+      - "${ONLYOFFICE_PORT:-8082}:80"
     volumes:
       - onlyoffice_data:/var/www/onlyoffice/Data
       - onlyoffice_logs:/var/log/onlyoffice
@@ -78,6 +78,7 @@ services:
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.development
+      ONLYOFFICE_PUBLIC_URL: ${ONLYOFFICE_PUBLIC_URL:-http://localhost:8082}
     volumes:
       - ./backend:/app
       - static_files:/app/staticfiles

@@ -25,18 +25,9 @@
     "overdue_sla": "Overdue / SLA"
   },
   "settings": {
-    "title": "Theme Settings",
-    "subtitle": "Customize your dashboard appearance",
-    "color_mode": "Color Mode",
-    "color_preset": "Color Preset",
-    "layout": "Layout",
-    "layout_description": "Navigation uses a sidebar on larger screens. On smaller screens, use the menu icon to open the navigation drawer.",
-    "regional": "Regional",
+    "title": "Settings",
+    "color_mode": "Color mode",
     "language": "Language",
-    "rtl": "RTL Direction",
-    "apply_close": "Apply & Close",
-    "live_preview": "Live Preview",
-    "live_preview_description": "All changes apply instantly across the entire dashboard.",
     "light": "Light",
     "dark": "Dark"
   },

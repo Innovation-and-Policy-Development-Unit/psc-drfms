@@ -19,6 +19,8 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 INSTALLED_APPS += ['django_extensions']
 
+MIDDLEWARE += ['apps.core.middleware.QueryCountMiddleware']
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -32,5 +34,6 @@ LOGGING = {
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
         'apps': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False},
+        'apps.db': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False},
     },
 }

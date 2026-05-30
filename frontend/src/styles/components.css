@@ -1,0 +1,192 @@
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1.5 h-1.5;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+  }
+
+  .panel {
+    background: var(--surface-raised);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+  }
+
+  .panel-interactive {
+    @apply panel;
+    transition: border-color var(--duration-fast) var(--ease-out-expo),
+                background-color var(--duration-fast) var(--ease-out-expo);
+  }
+  .panel-interactive:hover {
+    border-color: var(--border-strong);
+  }
+
+  .card { @apply panel; }
+  .card-hover { @apply panel-interactive block; }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium;
+    border-radius: var(--radius-md);
+    transition: background-color var(--duration-fast) var(--ease-out-expo),
+                border-color var(--duration-fast) var(--ease-out-expo),
+                color var(--duration-fast) var(--ease-out-expo);
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn text-white;
+    background: var(--brand-navy);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--brand-navy-muted);
+  }
+  .dark .btn-primary {
+    background: rgb(var(--p-500));
+    color: var(--surface-base);
+  }
+
+  .btn-secondary {
+    @apply btn;
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--border-strong);
+  }
+
+  .btn-ghost {
+    @apply btn;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+  }
+
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .btn-outline { @apply btn-secondary; }
+
+  .input {
+    @apply w-full px-3 py-2 text-sm;
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    transition: border-color var(--duration-fast) var(--ease-out-expo);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--brand-accent);
+  }
+  .input::placeholder { color: var(--text-muted); }
+
+  .label-overline {
+    @apply text-[11px] font-medium uppercase tracking-[0.08em];
+    color: var(--text-muted);
+  }
+
+  .nav-link {
+    @apply flex items-center gap-2.5 px-3 py-2 text-sm;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid transparent;
+    transition: color var(--duration-fast) var(--ease-out-expo),
+                background-color var(--duration-fast) var(--ease-out-expo),
+                border-color var(--duration-fast) var(--ease-out-expo);
+  }
+  .nav-link:hover {
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+  }
+  .nav-link.active {
+    color: var(--brand-accent);
+    border-left-color: var(--brand-accent);
+    background: var(--surface-sunken);
+    font-weight: 500;
+  }
+
+  .section-nav {
+    @apply flex flex-col shrink-0;
+    min-width: 10rem;
+  }
+  .section-nav-item {
+    @apply block w-full text-start px-3 py-2.5 text-sm;
+    color: var(--text-secondary);
+    border-left: 2px solid transparent;
+    transition: color var(--duration-fast) var(--ease-out-expo),
+                background-color var(--duration-fast) var(--ease-out-expo),
+                border-color var(--duration-fast) var(--ease-out-expo);
+  }
+  .section-nav-item:hover {
+    background: var(--surface-sunken);
+    color: var(--text-primary);
+  }
+  .section-nav-item.active {
+    color: var(--brand-accent);
+    border-left-color: var(--brand-accent);
+    background: var(--surface-sunken);
+    font-weight: 500;
+  }
+
+  .registry-table { @apply w-full text-sm; }
+  .registry-table thead th {
+    @apply label-overline px-4 py-3 text-start border-b;
+    border-color: var(--border-default);
+  }
+  .registry-table tbody tr {
+    border-bottom: 1px solid var(--border-default);
+    transition: background-color var(--duration-fast) var(--ease-out-expo);
+  }
+  .registry-table tbody tr:hover { background: var(--surface-sunken); }
+  .registry-table tbody td {
+    @apply px-4 py-3;
+    color: var(--text-secondary);
+  }
+
+  .status-pill {
+    @apply inline-flex items-center px-2 py-0.5 text-[11px] font-medium;
+    border-radius: var(--radius-sm);
+  }
+
+  .badge-secondary { @apply status-pill; background: var(--surface-sunken); color: var(--text-secondary); }
+  .badge-info { @apply status-pill; background: var(--surface-sunken); color: var(--brand-accent); }
+  .badge-success { @apply status-pill; background: var(--status-success-bg); color: var(--status-success-fg); }
+  .badge-warning { @apply status-pill; background: var(--status-warning-bg); color: var(--status-warning-fg); }
+  .badge-danger { @apply status-pill; background: var(--status-danger-bg); color: var(--status-danger-fg); }
+
+  .alert-danger {
+    @apply flex items-start gap-3 p-3 text-sm;
+    background: var(--status-danger-bg);
+    color: var(--status-danger-fg);
+    border: 1px solid var(--status-danger-fg);
+    border-radius: var(--radius-sm);
+  }
+
+  @keyframes skeleton-fade-in {
+    from { opacity: 0.35; }
+    to { opacity: 0.85; }
+  }
+
+  .skeleton-block,
+  .skeleton {
+    background: var(--surface-sunken);
+    border-radius: var(--radius-sm);
+    animation: skeleton-fade-in 1.4s var(--ease-out-expo) alternate infinite;
+  }
+
+  .skeleton-stagger > .skeleton-block:nth-child(1) { animation-delay: 0ms; }
+  .skeleton-stagger > .skeleton-block:nth-child(2) { animation-delay: 80ms; }
+  .skeleton-stagger > .skeleton-block:nth-child(3) { animation-delay: 160ms; }
+  .skeleton-stagger > .skeleton-block:nth-child(4) { animation-delay: 240ms; }
+  .skeleton-stagger > .skeleton-block:nth-child(5) { animation-delay: 320ms; }
+
+  @keyframes registry-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-registry-in {
+    animation: registry-fade-in var(--duration-normal) var(--ease-out-expo) forwards;
+  }
+}

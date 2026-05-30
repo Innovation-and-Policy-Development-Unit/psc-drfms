@@ -41,6 +41,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    'apps.core',
     'apps.accounts',
     'apps.records',
     'apps.workflows',
@@ -177,6 +178,18 @@ REST_FRAMEWORK = {
         'apps.api_management.authentication.ApiKeyAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'DEFAULT_RENDERER_CLASSES': [
+        'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
+        'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'djangorestframework_camel_case.parser.CamelCaseJSONParser',
+        'djangorestframework_camel_case.parser.CamelCaseFormParser',
+        'djangorestframework_camel_case.parser.CamelCaseMultiPartParser',
+    ],
+    'JSON_UNDERSCOREIZE': {
+        'no_underscore_before_number': True,
+    },
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
@@ -283,4 +296,4 @@ ONLYOFFICE_JWT_SECRET = env('ONLYOFFICE_JWT_SECRET', default='onlyoffice_dev_sec
 # Internal Docker hostname backend uses when building callback/document URLs for OnlyOffice
 ONLYOFFICE_BACKEND_INTERNAL_URL = env('ONLYOFFICE_BACKEND_INTERNAL_URL', default='http://backend:8000')
 # Browser-accessible URL of the OnlyOffice server (used to load the JS SDK)
-ONLYOFFICE_PUBLIC_URL = env('ONLYOFFICE_PUBLIC_URL', default='http://localhost:8080')
+ONLYOFFICE_PUBLIC_URL = env('ONLYOFFICE_PUBLIC_URL', default='http://localhost:8082')

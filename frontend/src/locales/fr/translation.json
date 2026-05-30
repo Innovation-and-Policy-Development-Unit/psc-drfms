@@ -25,18 +25,9 @@
     "overdue_sla": "En retard / SLA"
   },
   "settings": {
-    "title": "Paramètres du thème",
-    "subtitle": "Personnalisez l'apparence de votre tableau de bord",
+    "title": "Paramètres",
     "color_mode": "Mode de couleur",
-    "color_preset": "Palette de couleurs",
-    "layout": "Disposition",
-    "layout_description": "La navigation utilise une barre latérale sur les grands écrans. Sur les petits écrans, utilisez l'icône de menu pour ouvrir le tiroir de navigation.",
-    "regional": "Régional",
     "language": "Langue",
-    "rtl": "Direction RTL",
-    "apply_close": "Appliquer et fermer",
-    "live_preview": "Aperçu en direct",
-    "live_preview_description": "Toutes les modifications s'appliquent instantanément sur l'ensemble du tableau de bord.",
     "light": "Clair",
     "dark": "Sombre"
   },

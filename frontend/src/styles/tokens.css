@@ -1,0 +1,85 @@
+/* PSC-DRFMS Registry — design tokens (palette, motion, spacing) */
+
+:root {
+  /* Surfaces */
+  --surface-base: #F7F6F4;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #EFEEEA;
+  --border-default: #E3E1DC;
+  --border-strong: #C9C6BE;
+
+  /* Brand — single fixed institutional palette */
+  --brand-navy: #004276;
+  --brand-navy-muted: #1A5A8A;
+  --brand-accent: #004276;
+  --brand-forest: #1B6B4A;
+  --brand-forest-muted: #3D9970;
+
+  /* Text */
+  --text-primary: #1A1A18;
+  --text-secondary: #4A4A45;
+  --text-muted: #6B6B66;
+
+  /* Semantic */
+  --status-warning-bg: #FEF9E7;
+  --status-warning-fg: #9A6700;
+  --status-danger-bg: #FDF0F2;
+  --status-danger-fg: #9B2335;
+  --status-success-bg: #EDF7F2;
+  --status-success-fg: #1B6B4A;
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  /* Layout — 4px base unit */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --gutter-mobile: 16px;
+  --gutter-desktop: 24px;
+
+  /* Tailwind primary scale (navy) */
+  --p-50: 240 247 255;
+  --p-100: 220 236 252;
+  --p-200: 180 213 245;
+  --p-300: 130 183 230;
+  --p-400: 70 140 205;
+  --p-500: 0 66 118;
+  --p-600: 0 56 102;
+  --p-700: 0 47 86;
+  --p-800: 0 38 70;
+  --p-900: 0 30 56;
+}
+
+.dark {
+  --surface-base: #141413;
+  --surface-raised: #1C1C1A;
+  --surface-sunken: #0F0F0E;
+  --border-default: #2E2E2B;
+  --border-strong: #454542;
+
+  --brand-accent: #5B9BD5;
+
+  --text-primary: #EDEDEA;
+  --text-secondary: #B8B8B2;
+  --text-muted: #9C9C96;
+
+  --status-warning-bg: #2A2410;
+  --status-warning-fg: #D4A72C;
+  --status-danger-bg: #2A1418;
+  --status-danger-fg: #E57373;
+  --status-success-bg: #142A20;
+  --status-success-fg: #3D9970;
+
+  --p-400: 91 155 213;
+  --p-500: 91 155 213;
+  --p-600: 70 130 190;
+}
