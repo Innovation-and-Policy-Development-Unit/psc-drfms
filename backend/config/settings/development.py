@@ -1,0 +1,39 @@
+from .base import *
+
+DEBUG = True
+
+# Docker Compose service names (nginx proxy / internal health checks)
+ALLOWED_HOSTS = list({
+    *ALLOWED_HOSTS,
+    'backend',
+    'frontend',
+    'localhost:3000',
+})
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Use local media storage in development for simplicity
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+INSTALLED_APPS += ['django_extensions']
+
+MIDDLEWARE += ['apps.core.middleware.QueryCountMiddleware']
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'apps': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False},
+        'apps.db': {'handlers': ['console'], 'level': 'DEBUG', 'propagate': False},
+    },
+}

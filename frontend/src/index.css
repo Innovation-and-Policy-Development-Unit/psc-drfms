@@ -1,0 +1,77 @@
+@import './styles/tokens.css';
+@import './styles/typography.css';
+@import './styles/components.css';
+@import './styles/drive.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    @apply antialiased text-sm leading-relaxed;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'IBM Plex Serif', Georgia, serif;
+  }
+
+  .font-mono-ref {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+}
+
+@layer components {
+  /* Legacy aliases still referenced by shared components */
+  .sidebar-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  .table-wrapper {
+    @apply w-full overflow-x-auto;
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+  .table thead th {
+    @apply px-5 py-3 text-start text-xs font-medium border-b;
+    color: var(--text-muted);
+    border-color: var(--border-default);
+  }
+  .table tbody tr {
+    border-bottom: 1px solid var(--surface-sunken);
+    transition: background-color var(--duration-fast) var(--ease-out-expo);
+  }
+  .table tbody tr:hover { background: var(--surface-base); }
+  .dark .table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+  .table tbody td {
+    @apply px-5 py-3.5;
+    color: var(--text-secondary);
+  }
+}
+
+@layer utilities {
+  .text-muted {
+    color: var(--text-muted);
+  }
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+  .border-registry {
+    border-color: var(--border-default);
+  }
+  .bg-surface {
+    background: var(--surface-base);
+  }
+  .bg-raised {
+    background: var(--surface-raised);
+  }
+}

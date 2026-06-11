@@ -1,0 +1,102 @@
+/* TailAdmin design system — brand blue, white sidebar, gray surface scale
+   (ported from github.com/TailAdmin/free-react-tailwind-admin-dashboard) */
+
+:root {
+  --surface-base: #f9fafb;            /* gray-50  */
+  --surface-raised: #ffffff;
+  --surface-sunken: #f2f4f7;          /* gray-100 */
+  --surface-sidebar: #ffffff;
+  --surface-sidebar-hover: #f2f4f7;
+  --surface-sidebar-active: #ecf3ff;  /* brand-50 */
+  --border-default: #e4e7ec;          /* gray-200 */
+  --border-strong: #d0d5dd;           /* gray-300 */
+
+  --brand-primary: #465fff;           /* brand-500 */
+  --brand-primary-hover: #3641f5;     /* brand-600 */
+  --brand-primary-muted: #ecf3ff;     /* brand-50  */
+  --brand-navy: #465fff;
+  --brand-navy-muted: #3641f5;
+  --brand-accent: #465fff;
+  --brand-forest: #12b76a;            /* success-500 */
+  --brand-forest-muted: #ecfdf3;      /* success-50  */
+
+  --text-primary: #101828;            /* gray-900 */
+  --text-secondary: #344054;          /* gray-700 */
+  --text-muted: #667085;              /* gray-500 */
+  --text-sidebar: #344054;
+  --text-sidebar-muted: #667085;
+
+  --status-warning-bg: #fffaeb;       /* warning-50  */
+  --status-warning-fg: #dc6803;       /* warning-600 */
+  --status-danger-bg: #fef3f2;        /* error-50    */
+  --status-danger-fg: #d92d20;        /* error-600   */
+  --status-success-bg: #ecfdf3;       /* success-50  */
+  --status-success-fg: #039855;       /* success-600 */
+
+  --shadow-theme-xs: 0px 1px 2px 0px rgba(16, 24, 40, 0.05);
+  --shadow-theme-sm: 0px 1px 3px 0px rgba(16, 24, 40, 0.1), 0px 1px 2px 0px rgba(16, 24, 40, 0.06);
+  --shadow-theme-md: 0px 4px 8px -2px rgba(16, 24, 40, 0.1), 0px 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-theme-lg: 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --gutter-mobile: 16px;
+  --gutter-desktop: 24px;
+
+  /* brand scale (RGB triplets for tailwind primary-*) */
+  --p-50:  236 243 255;
+  --p-100: 221 233 255;
+  --p-200: 194 214 255;
+  --p-300: 156 185 255;
+  --p-400: 117 146 255;
+  --p-500: 70 95 255;
+  --p-600: 54 65 245;
+  --p-700: 42 49 216;
+  --p-800: 37 45 174;
+  --p-900: 38 46 137;
+}
+
+.dark {
+  --surface-base: #0c111d;            /* gray-950 */
+  --surface-raised: #101828;          /* gray-900 */
+  --surface-sunken: #1a2231;          /* gray-dark */
+  --surface-sidebar: #101828;
+  --surface-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --surface-sidebar-active: rgba(70, 95, 255, 0.12);
+  --border-default: #1d2939;          /* gray-800 */
+  --border-strong: #344054;           /* gray-700 */
+
+  --brand-accent: #7592ff;            /* brand-400 */
+  --brand-navy: #7592ff;
+  --brand-navy-muted: #465fff;
+  --brand-primary-muted: rgba(70, 95, 255, 0.12);
+  --brand-forest-muted: rgba(18, 183, 106, 0.12);
+
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: #d0d5dd;          /* gray-300 */
+  --text-muted: #98a2b3;              /* gray-400 */
+  --text-sidebar: #d0d5dd;
+  --text-sidebar-muted: #98a2b3;
+
+  --status-warning-bg: rgba(245, 158, 11, 0.12);
+  --status-warning-fg: #fdb022;       /* warning-400 */
+  --status-danger-bg: rgba(240, 68, 56, 0.12);
+  --status-danger-fg: #f97066;        /* error-400 */
+  --status-success-bg: rgba(18, 183, 106, 0.12);
+  --status-success-fg: #32d583;       /* success-400 */
+
+  --p-400: 156 185 255;
+  --p-500: 117 146 255;
+  --p-600: 70 95 255;
+}

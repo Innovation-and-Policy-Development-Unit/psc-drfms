@@ -1,0 +1,72 @@
+# Production override for this server (drfms.scdms.xyz behind host Caddy).
+# Loaded automatically by `docker compose up` alongside docker-compose.yml.
+#
+# - Project name "drfms" keeps this stack separate from the SCDMS stack at
+#   /opt/scdms/app, whose compose project is also derived from a dir named "app".
+# - All host ports bind to 127.0.0.1 only; Caddy terminates TLS on 80/443.
+#     frontend  -> 127.0.0.1:8001  (Caddy: everything else)
+#     backend   -> 127.0.0.1:8002  (Caddy: /admin*, /static*)
+#     onlyoffice-> 127.0.0.1:8082  (not publicly routed yet)
+# - db/redis/minio are reachable only on the internal Docker network.
+
+name: drfms
+
+services:
+  db:
+    ports: !override []
+
+  redis:
+    ports: !override []
+
+  minio:
+    ports: !override []
+
+  onlyoffice:
+    ports: !override
+      - "127.0.0.1:8082:80"
+
+  backend:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    ports: !override
+      - "127.0.0.1:8002:8000"
+    # No source bind mount in production — run the code baked into the image
+    volumes: !override
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    # NB: keep the uvicorn invocation on one line — YAML folded scalars preserve
+    # newlines before more-indented lines, which sh would treat as a command break
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python manage.py shell -c \"from apps.accounts.fixtures import create_superuser; create_superuser()\" &&
+             uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --workers 2 --proxy-headers --forwarded-allow-ips='*'"
+    healthcheck:
+      # X-Forwarded-Proto avoids the SECURE_SSL_REDIRECT 301 in production settings
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/api/health/', headers={'X-Forwarded-Proto': 'https'}))\""]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 90s
+
+  celery_worker:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    volumes: !override
+      - media_files:/app/media
+
+  celery_beat:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+    volumes: !override []
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:8001:80"
+    healthcheck:
+      # Plain index check; /api/health/ would 301 to https under production settings
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
