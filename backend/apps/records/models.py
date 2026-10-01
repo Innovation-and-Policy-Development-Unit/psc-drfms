@@ -99,6 +99,8 @@ class Record(models.Model):
         ordering = ['-created_at']
         indexes = [
             GinIndex(fields=['search_vector'], name='record_search_gin'),
+            GinIndex(fields=['title'], name='record_title_trgm', opclasses=['gin_trgm_ops']),
+            GinIndex(fields=['reference_number'], name='record_ref_trgm', opclasses=['gin_trgm_ops']),
             models.Index(fields=['reference_number']),
             models.Index(fields=['document_type']),
             models.Index(fields=['classification_level']),

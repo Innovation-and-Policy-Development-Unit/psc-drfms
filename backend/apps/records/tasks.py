@@ -36,8 +36,8 @@ def process_record_ocr(self, version_id):
         # Update record search vector
         update_record_search_vector.delay(str(version.record_id))
 
-        # Queue AI tagging if text was extracted
-        if text.strip() and settings.ANTHROPIC_API_KEY:
+        # Queue local metadata suggestions if text was extracted
+        if text.strip():
             ai_tag_record.delay(str(version.id))
 
     except Exception as exc:
@@ -45,53 +45,27 @@ def process_record_ocr(self, version_id):
         raise self.retry(exc=exc, countdown=60)
 
 
-@shared_task(bind=True, max_retries=2)
-def ai_tag_record(self, version_id):
-    """Use Anthropic API to suggest metadata for a record (transient processing - text not stored by Anthropic)."""
-    from .models import RecordVersion
-    try:
-        version = RecordVersion.objects.get(id=version_id)
-        if not version.ocr_text:
-            return
+@shared_task
+def ai_tag_record(version_id):
+    """Suggest metadata from the OCR text using the on-server heuristic suggester.
 
-        import anthropic
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    Runs entirely locally — no document text is sent to any external service.
+    """
+    from .models import Record, RecordVersion
+    from .suggest import suggest_metadata
 
-        prompt = f"""You are a records classification assistant for the Office of the Public Service Commission, Vanuatu.
-Analyse the following document text and suggest metadata. Respond in JSON only.
+    version = RecordVersion.objects.get(id=version_id)
+    if not version.ocr_text:
+        return
 
-Document text (first 2000 chars):
-{version.ocr_text[:2000]}
-
-Return JSON with these fields (include a confidence 0-1 for each):
-{{
-  "document_type": {{"value": "...", "confidence": 0.0}},
-  "originating_ministry": {{"value": "...", "confidence": 0.0}},
-  "subject_line": {{"value": "...", "confidence": 0.0}},
-  "document_date": {{"value": "YYYY-MM-DD or null", "confidence": 0.0}},
-  "reference_number_format": {{"value": "...", "confidence": 0.0}},
-  "classification_level": {{"value": "unclassified|internal|confidential|restricted", "confidence": 0.0}}
-}}"""
-
-        message = client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=512,
-            messages=[{'role': 'user', 'content': prompt}],
-        )
-
-        import json
-        response_text = message.content[0].text
-        start = response_text.find('{')
-        end = response_text.rfind('}') + 1
-        suggestions = json.loads(response_text[start:end])
-
-        version.ai_suggestions = suggestions
-        version.ai_processed = True
-        version.save(update_fields=['ai_suggestions', 'ai_processed'])
-
-    except Exception as exc:
-        logger.error(f"AI tagging failed for version {version_id}: {exc}")
-        raise self.retry(exc=exc, countdown=120)
+    ministries = list(
+        Record.objects.exclude(originating_ministry="")
+        .values_list("originating_ministry", flat=True)
+        .distinct()[:200]
+    )
+    version.ai_suggestions = suggest_metadata(version.ocr_text, ministries)
+    version.ai_processed = True
+    version.save(update_fields=["ai_suggestions", "ai_processed"])
 
 
 @shared_task
