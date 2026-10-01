@@ -14,6 +14,7 @@ import ShareDialog from '@/components/record/ShareDialog'
 import PermissionsPanel from '@/components/record/PermissionsPanel'
 import GovernancePanel from '@/components/record/GovernancePanel'
 import LifecycleMap from '@/components/record/LifecycleMap'
+import AiSuggestionsPanel from '@/components/record/AiSuggestionsPanel'
 import PresenceAvatars from '@/components/record/PresenceAvatars'
 import ActivityPanel from '@/components/record/ActivityPanel'
 import { Panel } from '@/components/ui/Panel'
@@ -255,7 +256,7 @@ export default function RecordDetail() {
                     </div>
                   )}
                 </div>
-                <aside className="xl:w-56 shrink-0 text-sm space-y-3">
+                <aside className="xl:w-72 shrink-0 text-sm space-y-3">
                   <DetailField label="File" value={fileName} />
                   <DetailField label="Size" value={formatFileSize(version?.fileSize ?? version?.file_size)} />
                   <DetailField
@@ -266,6 +267,7 @@ export default function RecordDetail() {
                   />
                   <DetailField label="Custodian" value={record.custodianName ?? record.custodian_name} />
                   {record.description && <DetailField label="Description" value={record.description} />}
+                  <AiSuggestionsPanel record={record} canEdit={canDelete} onApplied={loadRecord} />
                 </aside>
               </div>
             )}

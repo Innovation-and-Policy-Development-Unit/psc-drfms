@@ -2,13 +2,15 @@ import { useState, useRef, useEffect, useCallback, Fragment, memo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
+import { useDriveUI } from "../../context/DriveUIContext"
 import { notificationsApi } from '../../api'
 import clsx from 'clsx'
 import {
   Menu, Search, Bell, Settings, Sun, Moon, ChevronDown,
   User, LogOut, HelpCircle, Shield, X, ChevronRight,
-  GitBranch, FileText, AlertCircle, Info,
+  GitBranch, FileText, AlertCircle, Info, Upload,
 } from 'lucide-react'
+import { OPEN_PALETTE_EVENT } from "./CommandPalette"
 import Logo from '../shared/Logo'
 
 // TailAdmin header action button: circular, bordered
@@ -64,6 +66,8 @@ const UserMenuItem = memo(function UserMenuItem({ Icon, label, onClick }) {
 export default function Header({ onMenuClick }) {
   const { isDark, toggleDark, openSettingsPanel } = useTheme()
   const { user, logout } = useAuth()
+  const { openUploadDialog } = useDriveUI()
+  const canUpload = ["records_officer", "director", "commissioner", "administrator"].includes(user?.role)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -123,7 +127,7 @@ export default function Header({ onMenuClick }) {
   }
 
   return (
-    <header className="fixed top-0 end-0 start-0 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-30 flex items-center px-4 gap-3">
+    <header className="fixed top-0 end-0 start-0 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-30 flex items-center px-4 lg:px-6 gap-3 lg:start-64">
       {/* Mobile menu */}
       <button
         onClick={onMenuClick}
@@ -134,7 +138,7 @@ export default function Header({ onMenuClick }) {
       </button>
 
       {/* Brand */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex lg:hidden items-center gap-3 shrink-0">
         <Logo size={32} />
         <div className="hidden sm:block">
           <span className="font-bold text-lg text-primary-500 dark:text-slate-300">PSC-DRFMS</span>
@@ -145,7 +149,7 @@ export default function Header({ onMenuClick }) {
       </div>
 
       {/* Breadcrumbs */}
-      <div className="hidden md:flex items-center gap-1.5 text-sm">
+      <div className="hidden md:flex items-center gap-1.5 text-sm whitespace-nowrap shrink-0">
         <span className="text-slate-400 dark:text-slate-500">Home</span>
         {breadcrumbs.map((crumb, i) => (
           <Fragment key={crumb}>
@@ -163,32 +167,35 @@ export default function Header({ onMenuClick }) {
 
       <div className="flex-1" />
 
-      {/* Search */}
-      <div className="relative">
-        {searchOpen ? (
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 animate-fade-in">
-            <input
-              type="text"
-              placeholder="Search records…"
-              autoFocus
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-48 sm:w-64 input text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => { setSearchOpen(false); setSearchQuery('') }}
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
-            >
-              <X size={16} />
-            </button>
-          </form>
-        ) : (
-          <button onClick={() => setSearchOpen(true)} className={iconBtn}>
-            <Search size={18} />
-          </button>
-        )}
-      </div>
+      {/* Search: opens the command palette */}
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
+        className="hidden md:flex h-10 w-full max-w-md items-center gap-3 rounded-full border border-gray-200 bg-gray-50 px-4 text-start text-sm text-gray-400 transition-colors hover:border-primary-300 hover:bg-white dark:border-gray-800 dark:bg-white/[0.03] dark:hover:bg-white/5"
+        aria-label="Search records and commands"
+      >
+        <Search size={16} className="shrink-0" />
+        <span className="flex-1 truncate">Search records, jump to a page…</span>
+        <kbd className="rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-900">Ctrl K</kbd>
+      </button>
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
+        className={iconBtn + " md:hidden"}
+        aria-label="Search"
+      >
+        <Search size={18} />
+      </button>
+
+      {canUpload && (
+        <button
+          type="button"
+          onClick={() => openUploadDialog()}
+          className="hidden sm:inline-flex items-center gap-2 h-10 px-4 rounded-full bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium shadow-theme-xs transition-colors"
+        >
+          <Upload size={16} /> Upload
+        </button>
+      )}
 
       {/* Dark mode */}
       <button

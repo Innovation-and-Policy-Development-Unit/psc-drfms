@@ -1,9 +1,8 @@
 import {
-  LayoutDashboard, FolderOpen, FileText, GitBranch, Mail,
+  LayoutDashboard, FolderOpen, GitBranch, Mail,
   Search, Shield, Users, BarChart3, Settings,
-  Lock, Archive, Trash2, Eye, Share2,
-  ClipboardList, AlertTriangle, CheckCircle,
-  BookOpen, Activity, Link, Clock,
+  Lock, Trash2, Eye, ClipboardList, AlertTriangle, CheckCircle,
+  Activity, Link, Clock, Star, Inbox, Upload,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/types/api'
@@ -41,41 +40,42 @@ export type FlatMenuEntry =
 
 const menuItems: MenuGroup[] = [
   {
-    group: 'Overview',
+    group: 'Workspace',
     groupIcon: LayoutDashboard,
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-      { label: 'My Tasks', icon: CheckCircle, path: '/workflows/my-tasks' },
+      { label: 'All Files', icon: FolderOpen, path: '/browse' },
+      { label: 'Recent', icon: Clock, path: '/recent' },
+      { label: 'Starred', icon: Star, path: '/starred' },
+      { label: 'Shared with me', icon: Users, path: '/shared-with-me' },
+      { label: 'Search', icon: Search, path: '/search' },
+      { label: 'Inbox', icon: Inbox, path: '/inbox' },
     ],
   },
   {
     group: 'Records',
     groupIcon: FolderOpen,
+    roles: OFFICER,
     items: [
-      { label: 'All Records', icon: FolderOpen, path: '/records' },
-      { label: 'Upload Record', icon: FileText, path: '/records/upload' },
-      {
-        label: 'Classification',
-        icon: BookOpen,
-        children: [
-          { label: 'Record Series', icon: Archive, path: '/records/series' },
-          { label: 'Correspondence', icon: Mail, path: '/correspondence' },
-        ],
-      },
+      { label: 'Upload Record', icon: Upload, path: '/upload', roles: OFFICER },
+      { label: 'Correspondence', icon: Mail, path: '/correspondence', roles: OFFICER },
+      { label: 'Shared Links', icon: Link, path: '/sharing', roles: OFFICER },
     ],
   },
   {
     group: 'Workflows',
     groupIcon: GitBranch,
+    roles: NO_RO,
     items: [
-      { label: 'All Workflows', icon: GitBranch, path: '/workflows' },
-      { label: 'My Tasks', icon: CheckCircle, path: '/workflows/my-tasks' },
-      { label: 'Templates', icon: ClipboardList, path: '/workflows/templates' },
+      { label: 'My Tasks', icon: CheckCircle, path: '/workflows/my-tasks', roles: NO_RO },
+      { label: 'All Workflows', icon: GitBranch, path: '/workflows', roles: OFFICER },
+      { label: 'Templates', icon: ClipboardList, path: '/workflows/templates', roles: OFFICER },
     ],
   },
   {
     group: 'Compliance',
     groupIcon: Shield,
+    roles: OFFICER,
     items: [
       { label: 'Legal Holds', icon: Lock, path: '/compliance/legal-holds' },
       { label: 'Retention', icon: Clock, path: '/compliance/retention' },
@@ -84,25 +84,11 @@ const menuItems: MenuGroup[] = [
     ],
   },
   {
-    group: 'Search',
-    groupIcon: Search,
-    items: [
-      { label: 'Search Records', icon: Search, path: '/search' },
-    ],
-  },
-  {
-    group: 'Sharing',
-    groupIcon: Share2,
-    items: [
-      { label: 'Shared Links', icon: Link, path: '/sharing' },
-    ],
-  },
-  {
     group: 'Analytics',
     groupIcon: BarChart3,
     roles: DIRPLUS,
     items: [
-      { label: 'Dashboard', icon: Activity, path: '/analytics', roles: DIRPLUS },
+      { label: 'Insights', icon: Activity, path: '/analytics', roles: DIRPLUS },
       { label: 'Audit log', icon: Eye, path: '/analytics/audit', roles: DIRPLUS },
     ],
   },

@@ -20,10 +20,36 @@ import type {
   AnalyticsOverview,
 } from '@/types/api'
 
+export interface SearchFacetValue { value: string; count: number }
+export interface SearchResponse {
+  results: RecordListItem[]
+  count: number
+  page: number
+  pageSize: number
+  pages: number
+  query: string
+  facets: {
+    documentType: SearchFacetValue[]
+    classificationLevel: SearchFacetValue[]
+    ministry: SearchFacetValue[]
+    year: SearchFacetValue[]
+  }
+  didYouMean: string | null
+}
+export interface SearchSuggestion {
+  id: string
+  referenceNumber: string
+  title: string
+  documentType: string
+  classificationLevel: string
+}
+
 export const searchApi = {
   search: (params: Record<string, string | number | undefined>) =>
-    client.get<{ results: RecordListItem[]; count: number; query: string }>('/search/', { params }),
-  analytics: () => client.get<Array<{ query: string; count: number; lastSearched: string }>>('/search/analytics/'),
+    client.get<SearchResponse>("/search/", { params }),
+  suggest: (q: string, signal?: AbortSignal) =>
+    client.get<SearchSuggestion[]>("/search/suggest/", { params: { q }, signal }),
+  analytics: () => client.get<Array<{ query: string; count: number; lastSearched: string }>>("/search/analytics/"),
 }
 
 export const workflowApi = {

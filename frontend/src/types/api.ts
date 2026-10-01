@@ -59,8 +59,12 @@ export interface RecordListItem {
   rank?: number
 }
 
+export interface AiSuggestion { value: string | null; confidence: number }
+
 export interface RecordVersion {
   id: number
+  aiSuggestions?: Record<string, AiSuggestion>
+  aiProcessed?: boolean
   fileName?: string
   file_name?: string
   mimeType?: string

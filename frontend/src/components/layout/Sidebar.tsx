@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, LogOut } from 'lucide-react'
 import menuItems, { getAllPaths, flattenItems, isGroupActive, isPathActive } from '@/data/menuItems'
 import Logo from '../shared/Logo'
 
@@ -154,6 +154,7 @@ function NavItem({ item }) {
     return (
       <NavLink
         to={item.path}
+        end={item.path === "/"}
         className={({ isActive }) => clsx(
           'flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all duration-150',
           isActive
@@ -218,8 +219,10 @@ function NavItem({ item }) {
 }
 
 export default function Sidebar({ mobileOpen, onMobileClose }) {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const collapsed = false
+  const initials = `${user?.first_name?.[0] ?? ""}${user?.last_name?.[0] ?? ""}`.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"
   const role = user?.role ?? 'read_only'
   const visibleGroups = menuItems.filter(g => !g.roles || g.roles.includes(role))
 
@@ -249,8 +252,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
           <Logo size={32} />
           {!collapsed && (
             <div>
-              <span className="font-bold text-lg text-primary-500 dark:text-slate-300">Liner</span>
-              <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-1 font-medium tracking-wider uppercase">Admin</span>
+              <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">PSC-DRFMS</span>
+              <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-0.5 font-medium tracking-wider uppercase">Public Service Commission</span>
             </div>
           )}
         </div>
@@ -284,28 +287,25 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
         </nav>
 
         {/* Bottom user info */}
-        {!collapsed && (
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors">
-              <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
-                <span className="text-white font-semibold text-sm">JD</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">John Doe</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">john@liner.com</p>
-              </div>
-              <ChevronRight size={14} className="text-slate-400 shrink-0 rtl:rotate-180" />
+        <div className="p-3 border-t border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+            <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+              <span className="text-white font-semibold text-sm">{initials}</span>
             </div>
-          </div>
-        )}
-
-        {collapsed && (
-          <div className="p-3 border-t border-slate-200 dark:border-slate-700">
-            <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center mx-auto cursor-pointer">
-              <span className="text-white font-semibold text-sm">JD</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{user?.full_name || user?.email}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{user?.role?.replace("_", " ")}</p>
             </div>
+            <button
+              type="button"
+              title="Sign out"
+              onClick={async () => { await logout(); navigate("/auth/login") }}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
-        )}
+        </div>
       </aside>
     </>
   )

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import DriveSidebar from '../drive/DriveSidebar'
-import DriveTopBar from '../drive/DriveTopBar'
+import Sidebar from './Sidebar'
+import Header from './Header'
+import CommandPalette from './CommandPalette'
 import DriveDropZone from '../drive/DriveDropZone'
 import { DriveStatusBar } from '../drive/DriveStatusBar'
 import { TransferPanel } from '../drive/TransferPanel'
@@ -9,35 +10,19 @@ import MegaUploadDialog from '../drive/MegaUploadDialog'
 import { SettingsPanel } from '@/components/layout/SettingsPanel'
 import { DriveUIProvider, useDriveUI } from '@/context/DriveUIContext'
 import { TransferProvider } from '@/context/TransferContext'
-import clsx from 'clsx'
 
-function DriveLayoutInner() {
+function AppShellInner() {
   const [mobileNav, setMobileNav] = useState(false)
   const { uploadDialogOpen, closeUploadDialog, pendingDialogFiles } = useDriveUI()
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--surface-base)' }}>
-      <DriveTopBar
-        onMenuClick={() => setMobileNav((o) => !o)}
-        onSearch={() => setMobileNav(false)}
-      />
+    <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+      <Sidebar mobileOpen={mobileNav} onMobileClose={() => setMobileNav(false)} />
+      <Header onMenuClick={() => setMobileNav((o) => !o)} />
 
-      <div className="drive-shell relative">
-        {mobileNav && (
-          <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileNav(false)} />
-        )}
-
-        <div
-          className={clsx(
-            'fixed lg:static inset-y-0 start-0 z-50 lg:z-auto pt-14 lg:pt-0 h-full transition-transform duration-200 lg:translate-x-0',
-            mobileNav ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full lg:translate-x-0',
-          )}
-        >
-          <DriveSidebar onNavigate={() => setMobileNav(false)} />
-        </div>
-
+      <main className="fixed inset-x-0 bottom-0 top-16 lg:start-64 flex flex-col min-w-0">
         <DriveDropZone enabled>
-          <div className="drive-main">
+          <div className="drive-main !bg-transparent">
             <div className="drive-main-scroll">
               <Outlet />
             </div>
@@ -45,7 +30,7 @@ function DriveLayoutInner() {
             <DriveStatusBar />
           </div>
         </DriveDropZone>
-      </div>
+      </main>
 
       <MegaUploadDialog
         open={uploadDialogOpen}
@@ -53,6 +38,7 @@ function DriveLayoutInner() {
         initialFiles={pendingDialogFiles}
       />
       <SettingsPanel />
+      <CommandPalette />
     </div>
   )
 }
@@ -61,7 +47,7 @@ export default function DriveLayout() {
   return (
     <DriveUIProvider>
       <TransferProvider>
-        <DriveLayoutInner />
+        <AppShellInner />
       </TransferProvider>
     </DriveUIProvider>
   )
