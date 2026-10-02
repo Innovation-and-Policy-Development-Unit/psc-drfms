@@ -1,4 +1,4 @@
-import { memo, useState, useMemo, useEffect, useCallback } from 'react'
+import { memo, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react'
 import { FolderOpen } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
@@ -41,6 +41,8 @@ interface FileBrowserProps {
   enableBulk?: boolean
   filterParams?: Record<string, string | boolean>
   driveMode?: boolean
+  /** Rendered between the toolbar and the list (e.g. series folders and type chips). */
+  header?: ReactNode
 }
 
 function FileBrowserInner({
@@ -52,6 +54,7 @@ function FileBrowserInner({
   enableBulk = true,
   filterParams = {},
   driveMode = true,
+  header,
 }: FileBrowserProps) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -257,6 +260,8 @@ function FileBrowserInner({
           </button>
         }
       />
+
+      {header}
 
       <BulkActionBar
         count={selected.size}
