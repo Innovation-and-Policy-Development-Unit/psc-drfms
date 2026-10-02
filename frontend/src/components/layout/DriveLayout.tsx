@@ -14,14 +14,22 @@ import { TransferProvider } from '@/context/TransferContext'
 
 function AppShellInner() {
   const [mobileNav, setMobileNav] = useState(false)
+  // Desktop icon-rail sidebar; remembered per browser
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("psc-sidebar-collapsed") === "1" } catch { return false }
+  })
+  const toggleCollapsed = () => setCollapsed((c) => {
+    try { localStorage.setItem("psc-sidebar-collapsed", c ? "0" : "1") } catch { /* storage blocked: applies for this visit */ }
+    return !c
+  })
   const { uploadDialogOpen, closeUploadDialog, pendingDialogFiles } = useDriveUI()
 
   return (
     <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-      <Sidebar mobileOpen={mobileNav} onMobileClose={() => setMobileNav(false)} />
-      <Header onMenuClick={() => setMobileNav((o) => !o)} />
+      <Sidebar mobileOpen={mobileNav} onMobileClose={() => setMobileNav(false)} collapsed={collapsed} />
+      <Header onMenuClick={() => setMobileNav((o) => !o)} collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
 
-      <main className="fixed inset-x-0 bottom-0 top-16 lg:start-64 flex flex-col min-w-0">
+      <main className={`fixed inset-x-0 bottom-0 top-16 flex flex-col min-w-0 transition-[inset] duration-300 ${collapsed ? "lg:start-[5.5rem]" : "lg:start-64"}`}>
         <DriveDropZone enabled>
           <div className="drive-main !bg-transparent">
             <div className="drive-main-scroll">

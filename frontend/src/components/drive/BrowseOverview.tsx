@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Folder } from 'lucide-react'
+import { Folder, Tag, X } from 'lucide-react'
 import clsx from 'clsx'
 import { searchApi, type SearchResponse } from '@/api'
 import { DOC_TYPE_LABELS } from '@/lib/recordBadges'
@@ -16,6 +16,7 @@ export default function BrowseOverview() {
   const [params, setParams] = useSearchParams()
   const docType = params.get('document_type')
   const series = params.get('record_series')
+  const tag = params.get('tag')
   const [facets, setFacets] = useState<SearchResponse['facets'] | null>(null)
 
   useEffect(() => {
@@ -43,15 +44,33 @@ export default function BrowseOverview() {
     next.delete('page')
     next.delete('document_type')
     next.delete('record_series')
+    next.delete('tag')
     setParams(next)
   }
 
   const types = facets?.documentType ?? []
   const folders = facets?.recordSeries ?? []
-  if (types.length === 0 && folders.length === 0 && !docType && !series) return null
+  if (types.length === 0 && folders.length === 0 && !docType && !series && !tag) return null
 
   return (
     <div className="space-y-4 border-b border-registry px-4 py-4">
+      {tag && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-gray-500">Showing records tagged</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 py-1 ps-2.5 pe-1.5 font-medium text-primary-600 dark:bg-primary-500/15 dark:text-primary-300">
+            <Tag size={12} /> {tag}
+            <button
+              type="button"
+              onClick={() => { const next = new URLSearchParams(params); next.delete('tag'); next.delete('page'); setParams(next) }}
+              className="rounded-full p-0.5 hover:bg-primary-100 dark:hover:bg-primary-500/25"
+              aria-label="Remove tag filter"
+            >
+              <X size={12} />
+            </button>
+          </span>
+        </div>
+      )}
+
       {folders.length > 0 && (
         <section aria-label="Record series">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-gray-400 font-sans">Record series</p>
@@ -90,10 +109,10 @@ export default function BrowseOverview() {
           <button
             type="button"
             onClick={clearAll}
-            aria-pressed={!docType && !series}
+            aria-pressed={!docType && !series && !tag}
             className={clsx(
               'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
-              !docType && !series
+              !docType && !series && !tag
                 ? 'bg-primary-500 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10',
             )}

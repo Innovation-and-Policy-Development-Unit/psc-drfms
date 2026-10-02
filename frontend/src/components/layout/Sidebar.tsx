@@ -4,13 +4,64 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
-import { ChevronDown, LogOut } from 'lucide-react'
+import { ChevronDown, LogOut, Tag } from 'lucide-react'
 import menuItems, { getAllPaths, flattenItems, isGroupActive, isPathActive } from '@/data/menuItems'
 import Logo from '../shared/Logo'
+import { useSidebarCounts } from '@/hooks/useSidebarCounts'
+import * as recordsApi from '@/api/records'
 
+
+function CountBadge({ n, dot = false }: { n?: number; dot?: boolean }) {
+  if (!n) return null
+  if (dot) return <span className="absolute end-2 top-1.5 h-2 w-2 rounded-full bg-red-500" aria-label={`${n} waiting`} />
+  return (
+    <span className="ms-auto min-w-[1.25rem] rounded-full bg-primary-500 px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white tabular-nums">
+      {n > 99 ? '99+' : n}
+    </span>
+  )
+}
+
+// Most-used tags as quick filters; the full list lives on the Tags page
+function SidebarTags() {
+  const [tags, setTags] = useState<Array<{ tag: string; count: number }>>([])
+  const location = useLocation()
+  useEffect(() => {
+    let cancelled = false
+    recordsApi.getTags()
+      .then(({ data }) => { if (!cancelled) setTags(data.slice(0, 8)) })
+      .catch(() => { /* the section simply stays empty */ })
+    return () => { cancelled = true }
+  }, [location.pathname])
+  if (tags.length === 0) return null
+  const active = new URLSearchParams(location.search).get('tag')
+  return (
+    <div className="mb-2">
+      <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+        <span>Tags</span>
+        <NavLink to="/tags" className="normal-case tracking-normal font-medium text-primary-500 hover:text-primary-600">All</NavLink>
+      </div>
+      <div className="flex flex-wrap gap-1.5 px-3">
+        {tags.map((t) => (
+          <NavLink
+            key={t.tag}
+            to={`/browse?tag=${encodeURIComponent(t.tag)}`}
+            className={clsx(
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+              location.pathname === '/browse' && active === t.tag
+                ? 'bg-primary-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10',
+            )}
+          >
+            <Tag size={10} /> {t.tag}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // Collapsed sidebar: one icon per group with tap/click flyout (portal)
-function CollapsedGroupItem({ group }) {
+function CollapsedGroupItem({ group, counts }) {
   const location = useLocation()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({})
@@ -20,6 +71,7 @@ function CollapsedGroupItem({ group }) {
   const allPaths = getAllPaths(group.items)
   const anyActive = isGroupActive(allPaths, location.pathname)
   const flatItems = flattenItems(group.items)
+  const waiting = group.items.reduce((n, i) => n + (i.badge ? counts[i.badge] ?? 0 : 0), 0)
 
   const positionDropdown = () => {
     if (!triggerRef.current) return
@@ -70,7 +122,7 @@ function CollapsedGroupItem({ group }) {
       <NavLink
         to={group.items[0].path}
         className={({ isActive }) => clsx(
-          'flex flex-col items-center gap-0.5 px-1 py-2.5 rounded-lg font-medium transition-all duration-150',
+          'relative flex flex-col items-center gap-0.5 px-1 py-2.5 rounded-lg font-medium transition-all duration-150',
           isActive
             ? 'bg-primary-50 dark:bg-primary-500/[0.12] text-primary-500 dark:text-primary-400'
             : 'text-slate-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-100'
@@ -78,6 +130,7 @@ function CollapsedGroupItem({ group }) {
       >
         <GroupIcon size={20} className="shrink-0" />
         <span className="text-[10px] leading-tight text-center truncate w-full">{group.group}</span>
+        <CountBadge n={waiting} dot />
       </NavLink>
     )
   }
@@ -88,7 +141,7 @@ function CollapsedGroupItem({ group }) {
         onClick={() => dropdownOpen ? close() : open()}
         aria-expanded={dropdownOpen}
         className={clsx(
-          'w-full flex flex-col items-center gap-0.5 px-1 py-2.5 rounded-lg font-medium transition-all duration-150',
+          'relative w-full flex flex-col items-center gap-0.5 px-1 py-2.5 rounded-lg font-medium transition-all duration-150',
           anyActive || dropdownOpen
             ? 'bg-primary-50 dark:bg-primary-500/[0.12] text-primary-500 dark:text-primary-400'
             : 'text-slate-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-100'
@@ -96,6 +149,7 @@ function CollapsedGroupItem({ group }) {
       >
         <GroupIcon size={20} className="shrink-0" />
         <span className="text-[10px] leading-tight text-center truncate w-full">{group.group}</span>
+        <CountBadge n={waiting} dot />
       </button>
 
       {dropdownOpen && createPortal(
@@ -128,7 +182,8 @@ function CollapsedGroupItem({ group }) {
                 )}
               >
                 <ItemIcon size={15} className="shrink-0" />
-                <span>{entry.label}</span>
+                <span className="flex-1">{entry.label}</span>
+                <CountBadge n={entry.badge ? counts[entry.badge] : 0} />
               </NavLink>
             )
           })}
@@ -140,7 +195,7 @@ function CollapsedGroupItem({ group }) {
 }
 
 // Expanded sidebar: individual items with accordion for children
-function NavItem({ item }) {
+function NavItem({ item, counts }) {
   const location = useLocation()
   const [open, setOpen] = useState(() => {
     if (!item.children) return false
@@ -163,7 +218,8 @@ function NavItem({ item }) {
         )}
       >
         <Icon size={18} className="shrink-0" />
-        <span>{item.label}</span>
+        <span className="flex-1">{item.label}</span>
+        <CountBadge n={item.badge ? counts[item.badge] : 0} />
       </NavLink>
     )
   }
@@ -208,7 +264,8 @@ function NavItem({ item }) {
                 )}
               >
                 <ChildIcon size={15} className="shrink-0" />
-                <span>{child.label}</span>
+                <span className="flex-1">{child.label}</span>
+                <CountBadge n={child.badge ? counts[child.badge] : 0} />
               </NavLink>
             )
           })}
@@ -218,10 +275,12 @@ function NavItem({ item }) {
   )
 }
 
-export default function Sidebar({ mobileOpen, onMobileClose }) {
+export default function Sidebar({ mobileOpen, onMobileClose, collapsed = false }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const collapsed = false
+  const counts = useSidebarCounts()
+  // The icon rail only applies on desktop; the mobile drawer is always full width
+  const rail = collapsed && !mobileOpen
   const initials = `${user?.first_name?.[0] ?? ""}${user?.last_name?.[0] ?? ""}`.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"
   const role = user?.role ?? 'read_only'
   const visibleGroups = menuItems.filter(g => !g.roles || g.roles.includes(role))
@@ -240,17 +299,17 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
       <aside
         className={clsx(
           'fixed top-0 start-0 h-full bg-white dark:bg-gray-900 border-e border-gray-200 dark:border-gray-800 z-30 flex flex-col sidebar-transition overflow-hidden',
-          collapsed ? 'w-[5.5rem]' : 'w-64',
+          rail ? 'w-[5.5rem]' : 'w-64',
           mobileOpen ? 'translate-x-0 w-64' : '-translate-x-full rtl:translate-x-full lg:translate-x-0 rtl:lg:translate-x-0'
         )}
       >
         {/* Logo */}
         <div className={clsx(
           'flex items-center h-16 border-b border-slate-200 dark:border-slate-700 shrink-0',
-          collapsed ? 'justify-center px-3' : 'px-5 gap-3'
+          rail ? 'justify-center px-3' : 'px-5 gap-3'
         )}>
           <Logo size={32} />
-          {!collapsed && (
+          {!rail && (
             <div>
               <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">PSC-DRFMS</span>
               <span className="block text-[10px] text-slate-400 dark:text-slate-500 -mt-0.5 font-medium tracking-wider uppercase">Public Service Commission</span>
@@ -260,11 +319,11 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar py-4 px-2 space-y-0.5">
-          {collapsed ? (
+          {rail ? (
             /* Collapsed: group icons with flyout */
             <div className="space-y-1">
               {visibleGroups.map(group => (
-                <CollapsedGroupItem key={group.group} group={group} />
+                <CollapsedGroupItem key={group.group} group={group} counts={counts} />
               ))}
             </div>
           ) : (
@@ -278,33 +337,50 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
                   {group.items
                     .filter(item => !item.roles || item.roles.includes(role))
                     .map(item => (
-                      <NavItem key={item.path || item.label} item={item} />
+                      <NavItem key={item.path || item.label} item={item} counts={counts} />
                     ))}
                 </div>
               </div>
             ))
           )}
+          {!rail && <SidebarTags />}
         </nav>
 
         {/* Bottom user info */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-            <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
-              <span className="text-white font-semibold text-sm">{initials}</span>
+          {rail ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center" title={user?.full_name || user?.email}>
+                <span className="text-white font-semibold text-sm">{initials}</span>
+              </div>
+              <button
+                type="button"
+                title="Sign out"
+                onClick={async () => { await logout(); navigate("/auth/login") }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{user?.full_name || user?.email}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{user?.role?.replace("_", " ")}</p>
+          ) : (
+            <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+              <div className="w-9 h-9 rounded-full bg-primary-500 flex items-center justify-center shrink-0">
+                <span className="text-white font-semibold text-sm">{initials}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{user?.full_name || user?.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{user?.role?.replace("_", " ")}</p>
+              </div>
+              <button
+                type="button"
+                title="Sign out"
+                onClick={async () => { await logout(); navigate("/auth/login") }}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
-            <button
-              type="button"
-              title="Sign out"
-              onClick={async () => { await logout(); navigate("/auth/login") }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-            >
-              <LogOut size={16} />
-            </button>
-          </div>
+          )}
         </div>
       </aside>
     </>

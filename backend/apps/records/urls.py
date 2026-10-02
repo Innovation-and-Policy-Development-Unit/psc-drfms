@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path('', views.RecordListCreateView.as_view(), name='record-list'),
+    path('tags/', views.TagListView.as_view(), name='record-tags'),
     path('<uuid:pk>/', views.RecordDetailView.as_view(), name='record-detail'),
     path('<uuid:pk>/star/', views.RecordStarView.as_view(), name='record-star'),
     path('<uuid:pk>/versions/', views.RecordVersionListView.as_view(), name='record-versions'),

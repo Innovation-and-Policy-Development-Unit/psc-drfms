@@ -2,7 +2,7 @@ import {
   LayoutDashboard, FolderOpen, GitBranch, Mail,
   Search, Shield, Users, BarChart3, Settings,
   Lock, Trash2, Eye, ClipboardList, AlertTriangle, CheckCircle,
-  Activity, Link, Clock, Star, Inbox, Upload,
+  Activity, Link, Clock, Star, Inbox, Upload, Tag,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/types/api'
@@ -12,11 +12,15 @@ const OFFICER: UserRole[] = ['records_officer', 'director', 'commissioner', 'adm
 const DIRPLUS: UserRole[] = ['director', 'commissioner', 'administrator']
 const ADMIN: UserRole[] = ['administrator']
 
+/** Which live count a menu entry shows as a badge. */
+export type BadgeKey = 'inbox' | 'tasks' | 'disposal'
+
 export interface MenuLink {
   label: string
   icon: LucideIcon
   path: string
   roles?: UserRole[]
+  badge?: BadgeKey
 }
 
 export interface MenuGroupItem {
@@ -24,6 +28,7 @@ export interface MenuGroupItem {
   icon: LucideIcon
   path?: string
   roles?: UserRole[]
+  badge?: BadgeKey
   children?: MenuLink[]
 }
 
@@ -49,7 +54,8 @@ const menuItems: MenuGroup[] = [
       { label: 'Starred', icon: Star, path: '/starred' },
       { label: 'Shared with me', icon: Users, path: '/shared-with-me' },
       { label: 'Search', icon: Search, path: '/search' },
-      { label: 'Inbox', icon: Inbox, path: '/inbox' },
+      { label: 'Tags', icon: Tag, path: '/tags' },
+      { label: 'Inbox', icon: Inbox, path: '/inbox', badge: 'inbox' },
     ],
   },
   {
@@ -67,7 +73,7 @@ const menuItems: MenuGroup[] = [
     groupIcon: GitBranch,
     roles: NO_RO,
     items: [
-      { label: 'My Tasks', icon: CheckCircle, path: '/workflows/my-tasks', roles: NO_RO },
+      { label: 'My Tasks', icon: CheckCircle, path: '/workflows/my-tasks', roles: NO_RO, badge: 'tasks' },
       { label: 'All Workflows', icon: GitBranch, path: '/workflows', roles: OFFICER },
       { label: 'Templates', icon: ClipboardList, path: '/workflows/templates', roles: OFFICER },
     ],
@@ -80,7 +86,8 @@ const menuItems: MenuGroup[] = [
       { label: 'Legal Holds', icon: Lock, path: '/compliance/legal-holds' },
       { label: 'Retention', icon: Clock, path: '/compliance/retention' },
       { label: 'Destruction', icon: Trash2, path: '/compliance/destruction' },
-      { label: 'Overdue Records', icon: AlertTriangle, path: '/compliance/overdue' },
+      // Records past retention that need a disposal decision (the registry's alternative to a trash can)
+      { label: 'Disposal queue', icon: AlertTriangle, path: '/compliance/overdue', badge: 'disposal' },
     ],
   },
   {
@@ -131,7 +138,7 @@ export function flattenItems(items: MenuGroupItem[]): FlatMenuEntry[] {
       flat.push({ type: 'header', label: item.label })
       item.children.forEach((c) => flat.push({ type: 'link', ...c }))
     } else if (item.path) {
-      flat.push({ type: 'link', label: item.label, icon: item.icon, path: item.path, roles: item.roles })
+      flat.push({ type: 'link', label: item.label, icon: item.icon, path: item.path, roles: item.roles, badge: item.badge })
     }
   })
   return flat

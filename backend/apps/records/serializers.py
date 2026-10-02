@@ -129,7 +129,34 @@ class RecordDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class RecordCreateSerializer(serializers.ModelSerializer):
+MAX_TAGS = 20
+MAX_TAG_LENGTH = 40
+
+
+class TagsValidationMixin:
+    """Keeps tags tidy so filtering by tag is predictable: lower-case, trimmed, unique."""
+
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Tags must be a list.")
+        seen, tags = set(), []
+        for raw in value:
+            if not isinstance(raw, str):
+                raise serializers.ValidationError("Each tag must be text.")
+            tag = " ".join(raw.split()).lower()
+            if not tag:
+                continue
+            if len(tag) > MAX_TAG_LENGTH:
+                raise serializers.ValidationError(f"A tag can be at most {MAX_TAG_LENGTH} characters.")
+            if tag not in seen:
+                seen.add(tag)
+                tags.append(tag)
+        if len(tags) > MAX_TAGS:
+            raise serializers.ValidationError(f"A record can have at most {MAX_TAGS} tags.")
+        return tags
+
+
+class RecordCreateSerializer(TagsValidationMixin, serializers.ModelSerializer):
     file = serializers.FileField(write_only=True)
     change_summary = serializers.CharField(write_only=True, required=False, default='Initial version')
 
@@ -176,7 +203,7 @@ class RecordCreateSerializer(serializers.ModelSerializer):
         return record
 
 
-class RecordUpdateSerializer(serializers.ModelSerializer):
+class RecordUpdateSerializer(TagsValidationMixin, serializers.ModelSerializer):
     class Meta:
         model = Record
         fields = [

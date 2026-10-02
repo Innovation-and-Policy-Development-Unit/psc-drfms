@@ -77,8 +77,10 @@ function FileBrowserInner({
     if (!filterParams.starred && !filterParams.shared_with_me) {
       const series = searchParams.get('record_series')
       const docType = searchParams.get('document_type')
+      const tag = searchParams.get('tag')
       if (series) params.record_series = series
       if (docType) params.document_type = docType
+      if (tag) params.tag = tag
     }
     Object.entries(filterParams).forEach(([k, v]) => { if (v) params[k] = v })
     return params

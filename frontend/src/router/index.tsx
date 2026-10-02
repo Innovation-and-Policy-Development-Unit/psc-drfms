@@ -11,6 +11,7 @@ import DocumentsHome from '@/pages/documents/DocumentsHome'
 import BrowseFiles from '@/pages/documents/BrowseFiles'
 import RecentFiles from '@/pages/documents/RecentFiles'
 import StarredFiles from '@/pages/documents/StarredFiles'
+import TagsPage from '@/pages/tags/TagsPage'
 import SharedWithMe from '@/pages/documents/SharedWithMe'
 import RecordDetail from '@/pages/documents/RecordDetail'
 import RecordUpload from '@/pages/records/RecordUpload'
@@ -58,6 +59,7 @@ export default function AppRouter() {
               per-record clearance, so read_only sees only what it may */}
           <Route path="/browse" element={<BrowseFiles />} />
           <Route path="/starred" element={<StarredFiles />} />
+          <Route path="/tags" element={<TagsPage />} />
           <Route path="/shared-with-me" element={<SharedWithMe />} />
           <Route path="/recent" element={<RecentFiles />} />
           <Route path="/document/:id" element={<RecordDetail />} />

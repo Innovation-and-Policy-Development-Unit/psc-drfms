@@ -8,7 +8,7 @@ import clsx from 'clsx'
 import {
   Menu, Search, Bell, Palette, Sun, Moon, ChevronDown,
   User, LogOut, HelpCircle, Shield, X, ChevronRight,
-  GitBranch, FileText, AlertCircle, Info, Upload,
+  GitBranch, FileText, AlertCircle, Info, Upload, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { OPEN_PALETTE_EVENT } from "./CommandPalette"
 import Logo from '../shared/Logo'
@@ -25,6 +25,7 @@ const breadcrumbMap = {
   '/recent': ['Documents', 'Recent'],
   '/search': ['Search'],
   '/inbox': ['Inbox'],
+  '/tags': ['Workspace', 'Tags'],
   '/workflows': ['Workflows'],
   '/workflows/my-tasks': ['Workflows', 'My Tasks'],
   '/workflows/templates': ['Workflows', 'Templates'],
@@ -35,7 +36,7 @@ const breadcrumbMap = {
   '/compliance/legal-holds': ['Compliance', 'Legal Holds'],
   '/compliance/destruction': ['Compliance', 'Destruction'],
   '/compliance/retention': ['Compliance', 'Retention'],
-  '/compliance/overdue': ['Compliance', 'Overdue'],
+  '/compliance/overdue': ['Compliance', 'Disposal queue'],
   '/correspondence': ['Correspondence'],
   '/sharing': ['Sharing'],
   '/analytics': ['Analytics'],
@@ -63,7 +64,7 @@ const UserMenuItem = memo(function UserMenuItem({ Icon, label, onClick }) {
   )
 })
 
-export default function Header({ onMenuClick }) {
+export default function Header({ onMenuClick, collapsed = false, onToggleCollapse }) {
   const { isDark, toggleDark, openSettingsPanel } = useTheme()
   const { user, logout } = useAuth()
   const { openUploadDialog } = useDriveUI()
@@ -127,7 +128,10 @@ export default function Header({ onMenuClick }) {
   }
 
   return (
-    <header className="fixed top-0 end-0 start-0 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-30 flex items-center px-4 lg:px-6 gap-3 lg:start-64">
+    <header className={clsx(
+      'fixed top-0 end-0 start-0 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 z-30 flex items-center px-4 lg:px-6 gap-3 transition-[inset] duration-300',
+      collapsed ? 'lg:start-[5.5rem]' : 'lg:start-64',
+    )}>
       {/* Mobile menu */}
       <button
         onClick={onMenuClick}
@@ -135,6 +139,18 @@ export default function Header({ onMenuClick }) {
         aria-label="Open menu"
       >
         <Menu size={20} />
+      </button>
+
+      {/* Desktop: collapse the sidebar to an icon rail */}
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="hidden lg:flex p-2 -ms-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-pressed={collapsed}
+      >
+        {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
       </button>
 
       {/* Brand */}

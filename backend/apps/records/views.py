@@ -60,6 +60,10 @@ class RecordListCreateView(generics.ListCreateAPIView):
         if self.request.query_params.get('starred') == 'true':
             qs = qs.filter(stars__user=user)
 
+        tag = self.request.query_params.get('tag')
+        if tag:
+            qs = qs.filter(tags__contains=[tag])
+
         if self.request.query_params.get('shared_with_me') == 'true':
             from apps.sharing.models import SharedLink
             email = (user.email or '').strip()
@@ -128,6 +132,34 @@ class RecordDetailView(generics.RetrieveUpdateDestroyAPIView):
         from apps.audit.utils import log_action
         log_action(request, 'delete', record)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TagListView(APIView):
+    """Every tag on records the viewer may see, with how many records carry it."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.db import connection
+        from .authorization import viewable_records
+
+        visible_sql, params = viewable_records(request.user).values("pk").query.sql_with_params()
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT t.tag, COUNT(*)
+                FROM records_record r
+                CROSS JOIN LATERAL jsonb_array_elements_text(
+                    CASE WHEN jsonb_typeof(r.tags) = 'array' THEN r.tags ELSE '[]'::jsonb END
+                ) AS t(tag)
+                WHERE r.id IN ({visible_sql})
+                GROUP BY t.tag
+                ORDER BY COUNT(*) DESC, t.tag
+                LIMIT 200
+                """,
+                params,
+            )
+            rows = cursor.fetchall()
+        return Response([{"tag": tag, "count": count} for tag, count in rows])
 
 
 class RecordStarView(APIView):

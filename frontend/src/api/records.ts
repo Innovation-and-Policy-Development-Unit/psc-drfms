@@ -14,6 +14,9 @@ export const updateRecord = (id: string, data: Record<string, unknown>) =>
 
 export const deleteRecord = (id: string) => client.delete(`/records/${id}/`)
 
+export const getTags = () =>
+  client.get<Array<{ tag: string; count: number }>>("/records/tags/")
+
 export const starRecord = (id: string) => client.post(`/records/${id}/star/`)
 export const unstarRecord = (id: string) => client.delete(`/records/${id}/star/`)
 
