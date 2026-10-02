@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  Search, FileText, CornerDownLeft, Upload, Moon, Sun, ArrowRight, Loader2,
+  Search, FileText, CornerDownLeft, Upload, Moon, Sun, ArrowRight, Loader2, Palette,
   type LucideIcon,
 } from 'lucide-react'
 import { searchApi, type SearchSuggestion } from '@/api'
@@ -30,7 +30,7 @@ export const OPEN_PALETTE_EVENT = 'open-command-palette'
 export default function CommandPalette() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { isDark, toggleDark } = useTheme()
+  const { isDark, toggleDark, openSettingsPanel, locked } = useTheme()
   const { openUploadDialog } = useDriveUI()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -143,17 +143,26 @@ export default function CommandPalette() {
     if (canUpload) {
       actions.push({ id: 'act-upload', group: 'Actions', label: 'Upload documents', icon: Upload, run: () => openUploadDialog() })
     }
+    if (!locked) {
+      actions.push({
+        id: 'act-theme',
+        group: 'Actions',
+        label: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+        icon: isDark ? Sun : Moon,
+        run: toggleDark,
+      })
+    }
     actions.push({
-      id: 'act-theme',
+      id: 'act-appearance',
       group: 'Actions',
-      label: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-      icon: isDark ? Sun : Moon,
-      run: toggleDark,
+      label: 'Appearance: theme, density, corners',
+      icon: Palette,
+      run: openSettingsPanel,
     })
     out.push(...actions.filter((a) => !q || a.label.toLowerCase().includes(q)))
 
     return out
-  }, [query, records, role, canUpload, isDark, navigate, openUploadDialog, toggleDark])
+  }, [query, records, role, canUpload, isDark, locked, navigate, openUploadDialog, toggleDark, openSettingsPanel])
 
   useEffect(() => { setActive(0) }, [query, records.length])
 

@@ -6,7 +6,7 @@ import { useDriveUI } from "../../context/DriveUIContext"
 import { notificationsApi } from '../../api'
 import clsx from 'clsx'
 import {
-  Menu, Search, Bell, Settings, Sun, Moon, ChevronDown,
+  Menu, Search, Bell, Palette, Sun, Moon, ChevronDown,
   User, LogOut, HelpCircle, Shield, X, ChevronRight,
   GitBranch, FileText, AlertCircle, Info, Upload,
 } from 'lucide-react'
@@ -279,13 +279,13 @@ export default function Header({ onMenuClick }) {
         )}
       </div>
 
-      {/* Settings */}
+      {/* Appearance */}
       <button
         onClick={openSettingsPanel}
         className={iconBtn}
-        title="Settings"
+        title="Appearance" aria-label="Appearance"
       >
-        <Settings size={18} />
+        <Palette size={18} />
       </button>
 
       {/* User dropdown */}

@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import CommandPalette from './CommandPalette'
+import AppearanceSync from './AppearanceSync'
 import DriveDropZone from '../drive/DriveDropZone'
 import { DriveStatusBar } from '../drive/DriveStatusBar'
 import { TransferPanel } from '../drive/TransferPanel'
@@ -39,6 +40,7 @@ function AppShellInner() {
       />
       <SettingsPanel />
       <CommandPalette />
+      <AppearanceSync />
     </div>
   )
 }

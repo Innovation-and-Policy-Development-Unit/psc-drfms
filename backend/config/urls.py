@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/audit/', include('apps.audit.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/search/', include('apps.search.urls')),
+    path('api/appearance/', include('apps.core.urls')),
     path('api/compliance/', include('apps.compliance.urls')),
     path('api/collaboration/', include('apps.collaboration.urls')),
     path('api/analytics/', include('apps.analytics.urls')),

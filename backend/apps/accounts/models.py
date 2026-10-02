@@ -79,6 +79,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     account_locked_until = models.DateTimeField(null=True, blank=True)
 
     preferred_language = models.CharField(max_length=10, default='en', choices=[('en', 'English'), ('fr', 'French')])
+    # Look of the interface chosen by this user: {theme, mode, density, radius}.
+    # Validated in apps.core.appearance.
+    appearance = models.JSONField(default=dict, blank=True)
 
     date_joined = models.DateTimeField(default=timezone.now)
     last_active = models.DateTimeField(null=True, blank=True)

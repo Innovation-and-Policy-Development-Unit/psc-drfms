@@ -1,0 +1,19 @@
+/* Density and corner style, switched by data attributes that
+   `applyAppearance` (src/lib/themes.ts) sets on <html>. */
+
+/* Density: every rem-based size scales with the root font size */
+html[data-density='compact'] {
+  font-size: 14.5px;
+}
+
+/* Corners: Tailwind's fixed radius utilities are remapped per style.
+   `rounded-full` (avatars, pills) is deliberately left alone. */
+html[data-radius='sharp'] .rounded-md  { border-radius: 0.2rem; }
+html[data-radius='sharp'] .rounded-lg  { border-radius: 0.25rem; }
+html[data-radius='sharp'] .rounded-xl  { border-radius: 0.375rem; }
+html[data-radius='sharp'] .rounded-2xl { border-radius: 0.5rem; }
+
+html[data-radius='round'] .rounded-md  { border-radius: 0.5rem; }
+html[data-radius='round'] .rounded-lg  { border-radius: 0.75rem; }
+html[data-radius='round'] .rounded-xl  { border-radius: 1rem; }
+html[data-radius='round'] .rounded-2xl { border-radius: 1.5rem; }
