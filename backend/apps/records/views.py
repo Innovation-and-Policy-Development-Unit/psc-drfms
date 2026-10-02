@@ -80,6 +80,11 @@ class RecordListCreateView(generics.ListCreateAPIView):
             return [permissions.IsAuthenticated(), IsRecordsOfficerOrAbove()]
         return [permissions.IsAuthenticated()]
 
+    def perform_create(self, serializer):
+        record = serializer.save()
+        from apps.audit.utils import log_action
+        log_action(self.request, 'create', record)
+
 
 class RecordDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -100,6 +105,16 @@ class RecordDetailView(generics.RetrieveUpdateDestroyAPIView):
         from apps.audit.utils import log_action
         log_action(self.request, 'view', record)
         return record
+
+    def perform_update(self, serializer):
+        # Snapshot first: save() updates the instance in place
+        before = {name: getattr(serializer.instance, name) for name in serializer.validated_data}
+        record = serializer.save()
+        changed = sorted(name for name, old in before.items() if getattr(record, name) != old)
+        if changed:
+            from apps.audit.utils import log_action
+            # Field names only: values may be sensitive and the log is widely readable
+            log_action(self.request, 'update', record, extra={'fields': changed})
 
     def destroy(self, request, *args, **kwargs):
         record = self.get_object()
