@@ -56,6 +56,7 @@ export interface RecordListItem {
   createdAt: string
   updatedAt: string
   matchSnippet?: string
+  matchedBy?: "keyword" | "meaning" | "both" | null
   rank?: number
 }
 

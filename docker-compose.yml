@@ -1,6 +1,7 @@
 services:
   db:
-    image: postgres:16-alpine
+    # pgvector build of Postgres 16 (semantic search stores embeddings in the database)
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     env_file: .env
     environment:

@@ -36,8 +36,6 @@ Pillow==10.3.0
 pdf2image==1.17.0
 pypdf==4.2.0
 
-# AI Metadata Tagging (interim Anthropic API exception)
-anthropic==0.28.1
 
 # Digital Signatures
 pyhanko==0.21.0
@@ -67,3 +65,6 @@ weasyprint==62.3
 # Development
 django-extensions==3.2.3
 ipython==8.25.0
+
+# Semantic search (embeddings stored in Postgres)
+pgvector==0.3.6

@@ -115,3 +115,24 @@ class TypeaheadTypoTests(TestCase):
         client.force_authenticate(user)
         rows = client.get('/api/search/suggest/', {'q': 'budgt'}).json()
         self.assertEqual([r['id'] for r in rows], [str(rec.id)])
+
+
+class SeriesFacetTests(TestCase):
+    def setUp(self):
+        from apps.records.models import RecordSeries
+        self.user = make_admin()
+        self.hr = RecordSeries.objects.create(code='HR', name='Human Resources')
+        self.fin = RecordSeries.objects.create(code='FIN', name='Finance')
+        for title, series in (('Leave form', self.hr), ('Pay slip', self.hr), ('Audit', self.fin), ('Loose paper', None)):
+            Record.objects.create(title=title, record_series=series, custodian=self.user, author=self.user)
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_series_facet_has_names_and_counts_and_skips_unfiled_records(self):
+        facets = self.client.get('/api/search/', {'page_size': 1}).json()['facets']['recordSeries']
+        self.assertEqual([(f['label'], f['count']) for f in facets], [('Human Resources', 2), ('Finance', 1)])
+
+    def test_choosing_a_series_filters_results_but_keeps_other_series_visible(self):
+        data = self.client.get('/api/search/', {'record_series': self.hr.pk}).json()
+        self.assertEqual(data['count'], 2)
+        self.assertEqual({f['label'] for f in data['facets']['recordSeries']}, {'Human Resources', 'Finance'})

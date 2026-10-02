@@ -153,3 +153,16 @@ def visible_records(user, base_queryset=None):
     if user.role == UserRole.ADMINISTRATOR:
         return qs
     return qs.filter(visible_records_q(user)).distinct()
+
+
+def viewable_records(user):
+    """Live (not destroyed) records `user` may view, as a queryset safe to reuse.
+
+    Unlike `visible_records`, rows are never duplicated by the permission join,
+    so counts and aggregates over it are correct, and `.values('pk')` makes a
+    cheap subquery for filtering other tables.
+    """
+    return Record.objects.filter(
+        destroyed_at__isnull=True,
+        pk__in=Record.objects.filter(visible_records_q(user)).values('pk'),
+    )

@@ -32,9 +32,13 @@ export interface SearchResponse {
     documentType: SearchFacetValue[]
     classificationLevel: SearchFacetValue[]
     ministry: SearchFacetValue[]
+    recordSeries: Array<SearchFacetValue & { label: string }>
     year: SearchFacetValue[]
   }
   didYouMean: string | null
+  meaningMatches: number
+  /** True when finding meaning matches sent the query text to an outside provider. */
+  meaningExternal: boolean
 }
 export interface SearchSuggestion {
   id: string
@@ -44,11 +48,34 @@ export interface SearchSuggestion {
   classificationLevel: string
 }
 
+export interface SimilarRecord {
+  id: string
+  referenceNumber: string
+  title: string
+  documentType: string
+  classificationLevel: string
+  originatingMinistry: string
+  similarity: number
+}
+export interface SemanticStatus {
+  enabled: boolean
+  available: boolean
+  provider: string
+  external: boolean
+  maxClassification: string | null
+  model: string
+  indexedRecords: number
+  totalRecords: number
+}
+
 export const searchApi = {
   search: (params: Record<string, string | number | undefined>) =>
     client.get<SearchResponse>("/search/", { params }),
   suggest: (q: string, signal?: AbortSignal) =>
     client.get<SearchSuggestion[]>("/search/suggest/", { params: { q }, signal }),
+  similar: (id: string) =>
+    client.get<{ indexed: boolean; results: SimilarRecord[] }>(`/search/similar/${id}/`),
+  semanticStatus: () => client.get<SemanticStatus>("/search/semantic-status/"),
   analytics: () => client.get<Array<{ query: string; count: number; lastSearched: string }>>("/search/analytics/"),
 }
 
@@ -110,7 +137,27 @@ export const complianceApi = {
   triggerRetentionScan: () => client.post('/compliance/retention/scan/'),
 }
 
+export interface ActivityResponse {
+  days: number
+  series: Array<{ date: string; uploads: number; edits: number }>
+  recordsAdded: number
+  previousRecordsAdded: number
+  /** Null when the previous period had nothing to compare with. */
+  recordsTrendPct: number | null
+}
+export interface TeamFeedItem {
+  id: string
+  action: string
+  userName: string
+  recordId: string
+  recordTitle: string
+  referenceNumber: string
+  timestamp: string
+}
+
 export const analyticsApi = {
+  getActivity: (days: number) => client.get<ActivityResponse>('/analytics/activity/', { params: { days } }),
+  getTeamFeed: (limit = 8) => client.get<TeamFeedItem[]>('/analytics/team-feed/', { params: { limit } }),
   getOverview: () => client.get<AnalyticsOverview>('/analytics/overview/'),
   getDashboard: () => client.get<DashboardStats>('/analytics/dashboard/'),
   getRecordsByType: () => client.get<Array<{ documentType: string; count: number }>>('/analytics/records-by-type/'),

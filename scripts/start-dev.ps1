@@ -53,3 +53,8 @@ Write-Host "Login (frontend):" -ForegroundColor Cyan
 Write-Host "  Email:    admin@psc.gov.vu"
 Write-Host "  Password: Admin@123!"
 Write-Host ""
+Write-Host "Semantic search (Google Gemini):" -ForegroundColor Cyan
+Write-Host "  Put GEMINI_API_KEY in .env, then restart the backend. Without a key, search still works by keywords."
+Write-Host "  Only records up to EMBEDDING_EXTERNAL_MAX_CLASSIFICATION (default: internal) are ever sent to Google."
+Write-Host "  Index records that existed before:  docker compose exec backend python manage.py embed_records"
+Write-Host ""

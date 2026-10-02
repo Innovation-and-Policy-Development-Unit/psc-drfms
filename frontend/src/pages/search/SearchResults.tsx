@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Search, X, ChevronLeft, ChevronRight, Building2, CalendarDays, Lock, Star, FileSearch } from 'lucide-react'
+import { Search, X, ChevronLeft, ChevronRight, Building2, CalendarDays, Lock, Star, FileSearch, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { searchApi, type SearchResponse, type SearchFacetValue } from '@/api'
 import type { RecordListItem } from '@/types/api'
@@ -81,6 +81,7 @@ export default function SearchResults() {
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
+  const meaningOn = params.get('mode') !== 'keyword'
   const active = FILTER_KEYS.filter((k) => params.get(k))
   const labelFor = (param: FilterKey, value: string) => {
     const f = FACETS.find((x) => x.param === param)
@@ -110,6 +111,24 @@ export default function SearchResults() {
           <button type="button" onClick={() => setInput('')} className="absolute end-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10" aria-label="Clear search">
             <X size={16} />
           </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+          <input
+            type="checkbox"
+            className="peer sr-only"
+            checked={meaningOn}
+            onChange={() => update((p) => (meaningOn ? p.set('mode', 'keyword') : p.delete('mode')))}
+          />
+          <span className="relative h-5 w-9 rounded-full bg-gray-200 transition-colors after:absolute after:start-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-all peer-checked:bg-primary-500 peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4 peer-focus-visible:ring-4 peer-focus-visible:ring-primary-500/20 dark:bg-gray-700" />
+          <Sparkles size={14} className="text-primary-500" /> Also match by meaning
+        </label>
+        {data && data.meaningMatches > 0 && meaningOn && (
+          <span className="text-xs text-gray-400">
+            {data.meaningMatches} related by meaning{data.meaningExternal ? ' (your search words were sent to Google Gemini)' : ''}
+          </span>
         )}
       </div>
 
@@ -236,6 +255,11 @@ function ResultCard({ record, query }: { record: RecordListItem; query: string }
         </h3>
         {record.isOnLegalHold && <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600"><Lock size={12} /> Hold</span>}
         {record.isVital && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600"><Star size={12} /> Vital</span>}
+        {record.matchedBy === 'meaning' && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-600 dark:bg-primary-500/15 dark:text-primary-300" title="No exact words matched; this passage is close in meaning to your search">
+            <Sparkles size={11} /> Related by meaning
+          </span>
+        )}
       </div>
       <p className="mt-0.5 font-mono-ref text-xs text-gray-400"><Highlight text={ref ?? ''} query={query} /></p>
       {record.matchSnippet && (

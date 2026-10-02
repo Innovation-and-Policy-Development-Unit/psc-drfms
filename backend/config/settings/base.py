@@ -274,9 +274,31 @@ SAML_ENABLED = env.bool('SAML_ENABLED', default=False)
 SAML_SP_ENTITY_ID = env('SAML_SP_ENTITY_ID', default='')
 SAML_IDP_METADATA_URL = env('SAML_IDP_METADATA_URL', default='')
 
-# Anthropic AI (interim exception - transient processing only)
-ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY', default='')
-ANTHROPIC_MODEL = 'claude-haiku-4-5'
+# Semantic search: turns passages and queries into vectors.
+#   EMBEDDING_PROVIDER = 'gemini'  Google Gemini API (free tier). Text is SENT TO GOOGLE.
+#                      = 'ollama'  a local Ollama server; text never leaves the deployment.
+# Whatever the model, its output size must equal EMBEDDING_DIMENSIONS, which is also
+# the width of the RecordChunk.embedding column.
+EMBEDDING_PROVIDER = env('EMBEDDING_PROVIDER', default='gemini')
+EMBEDDING_DIMENSIONS = 1024
+SEMANTIC_SEARCH_ENABLED = env.bool('SEMANTIC_SEARCH_ENABLED', default=True)
+# Minimum cosine similarity (0-1) for a passage to count as a meaning match.
+# Tune per model: raise it if unrelated records show up, lower it if related ones are missed.
+SEMANTIC_MIN_SIMILARITY = env.float('SEMANTIC_MIN_SIMILARITY', default=0.55)
+
+# Google Gemini (key goes in .env, never in code)
+GEMINI_API_KEY = env('GEMINI_API_KEY', default='')
+GEMINI_EMBED_MODEL = env('GEMINI_EMBED_MODEL', default='gemini-embedding-001')
+GEMINI_TIMEOUT = env.int('GEMINI_TIMEOUT', default=30)
+# Safety rail for external providers: only records at or below this classification
+# are ever sent out. Higher ones stay keyword-searchable only.
+# One of: unclassified, internal, confidential, restricted, secret
+EMBEDDING_EXTERNAL_MAX_CLASSIFICATION = env('EMBEDDING_EXTERNAL_MAX_CLASSIFICATION', default='internal')
+
+# Local Ollama (only used when EMBEDDING_PROVIDER=ollama)
+OLLAMA_URL = env('OLLAMA_URL', default='http://ollama:11434')
+OLLAMA_EMBED_MODEL = env('OLLAMA_EMBED_MODEL', default='bge-m3')
+OLLAMA_TIMEOUT = env.int('OLLAMA_TIMEOUT', default=60)
 
 # Session
 SESSION_COOKIE_AGE = env.int('SESSION_COOKIE_AGE', default=28800)

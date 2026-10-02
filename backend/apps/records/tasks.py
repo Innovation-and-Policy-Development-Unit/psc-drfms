@@ -36,6 +36,10 @@ def process_record_ocr(self, version_id):
         # Update record search vector
         update_record_search_vector.delay(str(version.record_id))
 
+        # Semantic index: embed the freshly extracted text
+        from apps.search.tasks import embed_record
+        embed_record.delay(str(version.record_id))
+
         # Queue local metadata suggestions if text was extracted
         if text.strip():
             ai_tag_record.delay(str(version.id))
