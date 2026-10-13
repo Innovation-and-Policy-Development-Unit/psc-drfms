@@ -150,6 +150,9 @@ def _gemini(p, system, messages, images, json_mode, max_tokens):
             parts = [{'inlineData': {'mimeType': mt, 'data': _b64(raw)}} for mt, raw in images] + parts
         contents.append({'role': 'model' if m['role'] == 'assistant' else 'user', 'parts': parts})
     gen = {'maxOutputTokens': max_tokens}
+    # Reasoning tokens count against maxOutputTokens and can leave nothing for the answer
+    if settings.GEMINI_THINKING_BUDGET >= 0:
+        gen['thinkingConfig'] = {'thinkingBudget': settings.GEMINI_THINKING_BUDGET}
     if json_mode:
         gen['responseMimeType'] = 'application/json'
     data = _post(

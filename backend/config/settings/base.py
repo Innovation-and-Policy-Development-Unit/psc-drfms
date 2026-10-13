@@ -325,7 +325,8 @@ LLM_MAX_CONTEXT_CHARS = env.int('LLM_MAX_CONTEXT_CHARS', default=24000)
 LLM_RATE_LIMIT_PER_MINUTE = env.int('LLM_RATE_LIMIT_PER_MINUTE', default=20)
 ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY', default='')
 ANTHROPIC_MODEL = env('ANTHROPIC_MODEL', default='claude-sonnet-5-5')
-GEMINI_LLM_MODEL = env('GEMINI_LLM_MODEL', default='gemini-2.5-flash')
+GEMINI_LLM_MODEL = env('GEMINI_LLM_MODEL', default='gemini-flash-latest')
+GEMINI_THINKING_BUDGET = env.int('GEMINI_THINKING_BUDGET', default=0)  # -1 = leave the model's default
 OLLAMA_LLM_MODEL = env('OLLAMA_LLM_MODEL', default='llama3.1')
 OLLAMA_VISION_MODEL = env('OLLAMA_VISION_MODEL', default='')  # e.g. llava; empty = no vision on Ollama
 # Fill blank metadata automatically when the model is at least this sure (0 disables).
