@@ -150,6 +150,9 @@ services:
       args:
         VITE_API_BASE_URL: /api
     restart: unless-stopped
+    environment:
+      # Where the browser reaches OnlyOffice; allowed by the web server's Content-Security-Policy.
+      ONLYOFFICE_ORIGIN: ${ONLYOFFICE_PUBLIC_URL:-http://localhost:8082}
     ports:
       - "3000:80"
     healthcheck:

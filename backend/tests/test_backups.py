@@ -272,3 +272,122 @@ class RunApiTests(TestCase):
         self.assertEqual(run.status, RunStatus.FAILED)
         self.assertEqual(run.error, 'share is full')
         notify.assert_called_once()
+
+
+class FakeStorage:
+    """Just enough of a Django storage for the backup walk."""
+
+    def __init__(self, files):
+        self.files = files  # name -> (bytes, modified datetime)
+
+    def listdir(self, path):
+        prefix = f'{path}/' if path else ''
+        names = [n[len(prefix):] for n in self.files if n.startswith(prefix)]
+        return sorted({n.split('/')[0] for n in names if '/' in n}), sorted(n for n in names if '/' not in n)
+
+    def size(self, name):
+        return len(self.files[name][0])
+
+    def get_modified_time(self, name):
+        return self.files[name][1]
+
+    def open(self, name, mode='rb'):
+        return io.BytesIO(self.files[name][0])
+
+
+class FakeShare:
+    """An in-memory stand-in for the smbclient calls the backup makes."""
+
+    def __init__(self):
+        self.data = {}
+
+    def makedirs(self, path, exist_ok=False):
+        pass
+
+    def stat(self, path):
+        if path not in self.data:
+            raise FileNotFoundError(path)
+        return type('Stat', (), {'st_size': len(self.data[path])})()
+
+    def open_file(self, path, mode='rb'):
+        share = self
+
+        class Handle(io.BytesIO):
+            def close(self):
+                share.data[path] = self.getvalue()
+                super().close()
+        return Handle()
+
+    def replace(self, src, dst):
+        self.data[dst] = self.data.pop(src)
+
+    def remove(self, path):
+        self.data.pop(path, None)
+
+
+class IncrementalCopyTests(TestCase):
+    ROOT = chr(92) * 2 + 'fs' + chr(92) + 'backups' + chr(92) + 'files'
+
+    def setUp(self):
+        self.t0 = datetime(2026, 10, 1, 9, 0, 0, tzinfo=TZ)
+        self.storage = FakeStorage({'records/a.pdf': (b'AAAA', self.t0), 'records/b.pdf': (b'BBBB', self.t0)})
+        self.share = FakeShare()
+        patches = [patch('apps.backups.service.default_storage', self.storage),
+                   patch('apps.backups.service.smbclient', self.share)]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def at(self, name):
+        return self.ROOT + chr(92) + 'records' + chr(92) + name
+
+    def copy(self, encryptor=None):
+        from apps.backups import service
+        return service._copy_files(self.ROOT, encryptor)[:2]
+
+    def test_first_run_copies_everything_and_the_second_skips_it(self):
+        self.assertEqual(self.copy(), (2, 0))
+        self.assertEqual(self.copy(), (0, 2))
+
+    def test_a_same_size_edit_is_noticed(self):
+        self.copy()
+        self.storage.files['records/a.pdf'] = (b'ZZZZ', self.t0 + timedelta(minutes=5))  # same size, new content
+        self.assertEqual(self.copy(), (1, 1))
+        self.assertEqual(self.share.data[self.at('a.pdf')], b'ZZZZ')
+
+    def test_a_copy_missing_from_the_share_is_sent_again(self):
+        self.copy()
+        del self.share.data[self.at('b.pdf')]
+        self.assertEqual(self.copy(), (1, 1))
+
+    def test_existing_copies_from_before_tracking_are_adopted_not_resent(self):
+        self.share.data[self.at('a.pdf')] = b'AAAA'
+        self.share.data[self.at('b.pdf')] = b'BBBB'
+        self.assertEqual(self.copy(), (0, 2))
+        self.storage.files['records/a.pdf'] = (b'ZZZZ', self.t0 + timedelta(minutes=5))
+        self.assertEqual(self.copy(), (1, 1))
+
+    def test_progress_is_kept_when_a_run_stops_part_way(self):
+        from apps.backups import service
+        from apps.backups.models import BackupFileState
+        real = service._put
+        calls = {'n': 0}
+
+        def flaky(*a, **kw):
+            calls['n'] += 1
+            if calls['n'] == 2:
+                raise OSError('share went away')
+            return real(*a, **kw)
+        with patch('apps.backups.service._put', side_effect=flaky):
+            with self.assertRaises(OSError):
+                self.copy()
+        self.assertEqual(BackupFileState.objects.count(), 1)
+        self.assertEqual(self.copy(), (1, 1))
+
+    def test_switching_encryption_on_sends_encrypted_copies(self):
+        self.copy()
+        enc = streamcrypt.Encryptor(PASS)
+        self.assertEqual(self.copy(enc), (2, 0))
+        blob = self.share.data[self.at('a.pdf.enc')]
+        self.assertEqual(len(blob), streamcrypt.encrypted_size(4))
+        self.assertEqual(self.copy(enc), (0, 2))

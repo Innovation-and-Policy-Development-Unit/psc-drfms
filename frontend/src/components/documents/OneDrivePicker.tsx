@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Folder, FileText, X, ChevronRight } from 'lucide-react'
 import type { AccountInfo } from '@azure/msal-browser'
 import type { OneDriveSettings } from '@/api/onedrive'
 import { Button } from '@/components/ui/Button'
 import { formatFileSize } from '@/utils/fileType'
 import {
-  IMPORTABLE, disconnect, downloadFile, getToken, listFolder, signIn, type DriveItem,
+  IMPORTABLE, MAX_IMPORT_BYTES, disconnect, downloadFile, getToken, listFolder, signIn, type DriveItem,
 } from '@/lib/onedrive'
 
 interface Props {
@@ -23,6 +23,8 @@ export function OneDrivePicker({ settings, onClose, onPick }: Props) {
   const [selected, setSelected] = useState<Record<string, DriveItem>>({})
   const [busy, setBusy] = useState<'signin' | 'list' | 'import' | null>(null)
   const [error, setError] = useState('')
+  const [progress, setProgress] = useState<{ index: number; total: number; name: string; fraction: number } | null>(null)
+  const abort = useRef<AbortController | null>(null)
 
   const open = useCallback(async (acct: AccountInfo, crumbs: Crumb[]) => {
     setBusy('list')
@@ -70,17 +72,31 @@ export function OneDrivePicker({ settings, onClose, onPick }: Props) {
     if (!account) return
     setBusy('import')
     setError('')
+    const controller = new AbortController()
+    abort.current = controller
+    const chosen = Object.values(selected)
     try {
       const token = await getToken(settings, account)
       const files: File[] = []
-      for (const it of Object.values(selected)) files.push(await downloadFile(token, it))
+      // One at a time, so memory use is bounded by the largest single file and cancelling is quick.
+      for (const [index, it] of chosen.entries()) {
+        setProgress({ index, total: chosen.length, name: it.name, fraction: 0 })
+        files.push(await downloadFile(token, it, (fraction) =>
+          setProgress({ index, total: chosen.length, name: it.name, fraction }), controller.signal))
+      }
       onPick(files)
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      const cancelled = (e as Error).name === 'AbortError'
+      setError(cancelled ? 'Import cancelled. Nothing was added.' : (e as Error).message)
       setBusy(null)
+      setProgress(null)
+    } finally {
+      abort.current = null
     }
   }
+
+  const cancelImport = () => abort.current?.abort()
 
   const leave = async () => {
     await disconnect(settings).catch(() => undefined)
@@ -130,7 +146,8 @@ export function OneDrivePicker({ settings, onClose, onPick }: Props) {
               {busy === 'list' && <li className="px-4 py-3 text-sm text-muted">Loading…</li>}
               {busy !== 'list' && items.length === 0 && <li className="px-4 py-3 text-sm text-muted">This folder is empty.</li>}
               {items.map((it) => {
-                const ok = it.isFolder || IMPORTABLE.test(it.name)
+                const tooBig = !it.isFolder && it.size > MAX_IMPORT_BYTES
+                const ok = it.isFolder || (IMPORTABLE.test(it.name) && !tooBig)
                 return (
                   <li key={it.id} className="flex items-center gap-3 px-4 py-2 border-b border-registry last:border-0 text-sm">
                     {it.isFolder ? (
@@ -143,7 +160,7 @@ export function OneDrivePicker({ settings, onClose, onPick }: Props) {
                         <input type="checkbox" disabled={!ok} checked={Boolean(selected[it.id])} onChange={() => toggle(it)} />
                         <FileText size={16} className="text-muted shrink-0" />
                         <span className="truncate flex-1">{it.name}</span>
-                        <span className="text-xs text-muted tabular-nums">{ok ? formatFileSize(it.size) : 'Not supported'}</span>
+                        <span className="text-xs text-muted tabular-nums">{tooBig ? `Over ${MAX_IMPORT_BYTES / 1024 / 1024} MB` : ok ? formatFileSize(it.size) : 'Not supported'}</span>
                       </label>
                     )}
                   </li>
@@ -151,11 +168,22 @@ export function OneDrivePicker({ settings, onClose, onPick }: Props) {
               })}
             </ul>
             <div className="flex items-center gap-2 px-4 py-3 border-t border-registry">
-              <Button onClick={doImport} disabled={count === 0 || busy !== null}>
-                {busy === 'import' ? 'Importing…' : `Import ${count || ''} file${count === 1 ? '' : 's'}`.replace('Import  ', 'Import ')}
-              </Button>
-              <Button variant="ghost" onClick={leave} disabled={busy === 'import'}>Disconnect</Button>
-              <span className="ml-auto text-xs text-muted">PDF, Word and image files only</span>
+              {busy === 'import' && progress ? (
+                <>
+                  <span className="text-sm truncate flex-1" role="status">
+                    Importing {progress.index + 1} of {progress.total}: {progress.name} {Math.round(progress.fraction * 100)}%
+                  </span>
+                  <Button variant="secondary" onClick={cancelImport}>Cancel</Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={doImport} disabled={count === 0 || busy !== null}>
+                    {`Import ${count || ''} file${count === 1 ? '' : 's'}`.replace('Import  ', 'Import ')}
+                  </Button>
+                  <Button variant="ghost" onClick={leave} disabled={busy !== null}>Disconnect</Button>
+                  <span className="ml-auto text-xs text-muted">PDF, Word and image files, up to {MAX_IMPORT_BYTES / 1024 / 1024} MB</span>
+                </>
+              )}
             </div>
           </>
         )}

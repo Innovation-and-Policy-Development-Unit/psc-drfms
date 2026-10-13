@@ -95,3 +95,12 @@ class BackupRun(models.Model):
 
     class Meta:
         ordering = ['-started_at']
+
+
+class BackupFileState(models.Model):
+    """What was last copied to the share for each stored file, so edits are noticed even when the size is unchanged."""
+    path = models.CharField(max_length=700, unique=True)
+    size = models.BigIntegerField()
+    source_modified = models.DateTimeField(null=True, blank=True)
+    encrypted = models.BooleanField(default=False)
+    copied_at = models.DateTimeField(auto_now=True)

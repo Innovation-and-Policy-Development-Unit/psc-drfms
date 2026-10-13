@@ -24,6 +24,7 @@ from django.core.files.storage import default_storage
 from django.utils import timezone
 
 from . import smb, streamcrypt
+from .models import BackupFileState
 
 logger = logging.getLogger(__name__)
 
@@ -113,33 +114,72 @@ def _walk(storage, path=''):
         yield from _walk(storage, f'{path}/{d}' if path else d)
 
 
+FLUSH_EVERY = 500
+
+
+def _modified(storage, key):
+    """When the source file last changed, to the second (None if the storage cannot say)."""
+    try:
+        return storage.get_modified_time(key).replace(microsecond=0)
+    except (NotImplementedError, AttributeError):
+        return None
+
+
+def _flush(pending):
+    if pending:
+        BackupFileState.objects.bulk_create(
+            pending, update_conflicts=True, unique_fields=["path"],
+            update_fields=["size", "source_modified", "encrypted", "copied_at"],
+        )
+        pending.clear()
+
+
 def _copy_files(dest_dir, encryptor):
+    """Copy new and changed files. A file counts as unchanged only if the share still holds a copy of
+    the right size AND the source has the same size and modification time as when it was last copied."""
     storage = default_storage
+    known = {p: (size, mod, enc) for p, size, mod, enc in
+             BackupFileState.objects.values_list("path", "size", "source_modified", "encrypted")}
     copied = skipped = total_bytes = 0
     made_dirs = set()
-    for key in _walk(storage):
-        rel = _share_name(key)
-        if rel is None:
-            continue
-        if encryptor:
-            rel += ENC
-        size = storage.size(key)
-        expected = streamcrypt.encrypted_size(size) if encryptor else size
-        dest = dest_dir + '\\' + rel
-        try:
-            if smbclient.stat(dest).st_size == expected:
-                skipped += 1
+    pending = []
+    try:
+        for key in _walk(storage):
+            rel = _share_name(key)
+            if rel is None:
                 continue
-        except OSError:
-            pass  # not on the share yet
-        parent = dest.rsplit('\\', 1)[0]
-        if parent not in made_dirs:
-            smbclient.makedirs(parent, exist_ok=True)
-            made_dirs.add(parent)
-        with storage.open(key, 'rb') as src:
-            _put(dest, src, size, encryptor)
-        copied += 1
-        total_bytes += size
+            if encryptor:
+                rel += ENC
+            size = storage.size(key)
+            modified = _modified(storage, key)
+            expected = streamcrypt.encrypted_size(size) if encryptor else size
+            dest = dest_dir + "\\" + rel
+            on_share = False
+            try:
+                on_share = smbclient.stat(dest).st_size == expected
+            except OSError:
+                pass  # not on the share yet
+            state = known.get(key)
+            if on_share and state is None:
+                # A copy from before changes were tracked: adopt it and watch it from now on.
+                pending.append(BackupFileState(path=key, size=size, source_modified=modified, encrypted=bool(encryptor)))
+                skipped += 1
+            elif on_share and state == (size, modified, bool(encryptor)):
+                skipped += 1
+            else:
+                parent = dest.rsplit("\\", 1)[0]
+                if parent not in made_dirs:
+                    smbclient.makedirs(parent, exist_ok=True)
+                    made_dirs.add(parent)
+                with storage.open(key, "rb") as src:
+                    _put(dest, src, size, encryptor)
+                pending.append(BackupFileState(path=key, size=size, source_modified=modified, encrypted=bool(encryptor)))
+                copied += 1
+                total_bytes += size
+            if len(pending) >= FLUSH_EVERY:
+                _flush(pending)
+    finally:
+        _flush(pending)  # keep what was recorded even if the run stops part-way
     return copied, skipped, total_bytes
 
 

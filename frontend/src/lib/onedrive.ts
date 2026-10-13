@@ -85,8 +85,8 @@ export async function disconnect(cfg: OneDriveSettings) {
   await msal.clearCache()
 }
 
-async function graph(token: string, url: string): Promise<Response> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+async function graph(token: string, url: string, signal?: AbortSignal): Promise<Response> {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal })
   if (!res.ok) {
     let detail = ''
     try { detail = ((await res.json()) as { error?: { message?: string } }).error?.message ?? '' } catch { /* not JSON */ }
@@ -111,9 +111,34 @@ export async function listFolder(token: string, folderId?: string): Promise<Driv
   return items.sort((a, b) => Number(b.isFolder) - Number(a.isFolder) || a.name.localeCompare(b.name))
 }
 
-export async function downloadFile(token: string, item: DriveItem): Promise<File> {
-  const res = await graph(token, `${GRAPH}/me/drive/items/${encodeURIComponent(item.id)}/content`)
-  const blob = await res.blob()
-  const type = TYPES[item.name.split('.').pop()?.toLowerCase() ?? ''] ?? blob.type
-  return new File([blob], item.name, { type, lastModified: item.modified ? Date.parse(item.modified) : Date.now() })
+/** The largest file DRFMS accepts (the server enforces the same limit). */
+export const MAX_IMPORT_BYTES = 100 * 1024 * 1024
+
+/** Download one file, reporting progress and stopping cleanly if the caller aborts. */
+export async function downloadFile(
+  token: string, item: DriveItem, onProgress?: (fraction: number) => void, signal?: AbortSignal,
+): Promise<File> {
+  const res = await graph(token, `${GRAPH}/me/drive/items/${encodeURIComponent(item.id)}/content`, signal)
+  const total = item.size || Number(res.headers.get('content-length')) || 0
+  const parts: BlobPart[] = []
+  let received = 0
+  if (res.body) {
+    const reader = res.body.getReader()
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      received += value.length
+      if (received > MAX_IMPORT_BYTES) {
+        await reader.cancel()
+        throw new Error(`${item.name} is larger than the ${MAX_IMPORT_BYTES / 1024 / 1024} MB limit.`)
+      }
+      parts.push(value as BlobPart) // chunks from a network stream are plain ArrayBuffer-backed
+      if (total) onProgress?.(Math.min(1, received / total))
+    }
+  } else {
+    parts.push(await res.arrayBuffer())
+  }
+  onProgress?.(1)
+  const type = TYPES[item.name.split('.').pop()?.toLowerCase() ?? ''] ?? res.headers.get('content-type') ?? ''
+  return new File(parts, item.name, { type, lastModified: item.modified ? Date.parse(item.modified) : Date.now() })
 }
