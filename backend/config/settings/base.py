@@ -254,6 +254,10 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Backups: longest a single backup may run, and the longest a database dump may take
+BACKUP_TIME_LIMIT_HOURS = env.float('BACKUP_TIME_LIMIT_HOURS', default=12)
+BACKUP_DUMP_TIMEOUT = env.int('BACKUP_DUMP_TIMEOUT', default=3 * 3600)
+
 # Email — console backend until a real SMTP host is configured, so sends
 # never raise; switch via EMAIL_BACKEND env once SMTP credentials exist
 EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')

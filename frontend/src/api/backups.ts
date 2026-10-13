@@ -30,14 +30,24 @@ export interface BackupSettings {
   runHour: number
   weekday: number
   keepDatabaseCopies: number
+  encrypt: boolean
+  hasPassphrase: boolean
   configured: boolean
+  credentialsUnreadable: boolean
   nextRun: string | null
   lastRun: BackupRun | null
+  lastSuccessAt: string | null
+  overdue: boolean
   running: boolean
+  timezone: string
 }
 
-export type BackupSettingsInput = Partial<Omit<BackupSettings, 'hasPassword' | 'configured' | 'nextRun' | 'lastRun' | 'running'>> & {
+type Readonly = 'hasPassword' | 'hasPassphrase' | 'configured' | 'credentialsUnreadable' | 'nextRun'
+  | 'lastRun' | 'lastSuccessAt' | 'overdue' | 'running' | 'timezone'
+
+export type BackupSettingsInput = Partial<Omit<BackupSettings, Readonly>> & {
   password?: string
+  passphrase?: string
 }
 
 export const backupsApi = {

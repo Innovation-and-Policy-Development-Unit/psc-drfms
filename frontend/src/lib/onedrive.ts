@@ -13,6 +13,18 @@ const GRAPH = 'https://graph.microsoft.com/v1.0'
 
 export const IMPORTABLE = /\.(pdf|docx?|png|jpe?g|tiff?)$/i
 
+// The upload check trusts the browser-reported type, which OneDrive downloads often leave blank.
+const TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  tif: 'image/tiff',
+  tiff: 'image/tiff',
+}
+
 export interface DriveItem {
   id: string
   name: string
@@ -102,5 +114,6 @@ export async function listFolder(token: string, folderId?: string): Promise<Driv
 export async function downloadFile(token: string, item: DriveItem): Promise<File> {
   const res = await graph(token, `${GRAPH}/me/drive/items/${encodeURIComponent(item.id)}/content`)
   const blob = await res.blob()
-  return new File([blob], item.name, { type: blob.type || undefined, lastModified: item.modified ? Date.parse(item.modified) : Date.now() })
+  const type = TYPES[item.name.split('.').pop()?.toLowerCase() ?? ''] ?? blob.type
+  return new File([blob], item.name, { type, lastModified: item.modified ? Date.parse(item.modified) : Date.now() })
 }

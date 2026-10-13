@@ -24,6 +24,9 @@ class BackupSettings(models.Model):
     run_hour = models.PositiveSmallIntegerField(default=1)
     weekday = models.PositiveSmallIntegerField(default=6, help_text='0 = Monday ... 6 = Sunday (weekly only)')
     keep_database_copies = models.PositiveSmallIntegerField(default=14)
+    encrypt = models.BooleanField(default=False, help_text='Encrypt everything written to the share')
+    passphrase_enc = models.TextField(blank=True)
+    last_alert_at = models.DateTimeField(null=True, blank=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
     )
@@ -50,8 +53,22 @@ class BackupSettings(models.Model):
         self.password_enc = crypto.encrypt(value)
 
     @property
+    def passphrase(self) -> str:
+        return crypto.decrypt(self.passphrase_enc)
+
+    @passphrase.setter
+    def passphrase(self, value: str):
+        self.passphrase_enc = crypto.encrypt(value)
+
+    @property
+    def credentials_unreadable(self) -> bool:
+        """Saved secrets that can no longer be decrypted (for example after SECRET_KEY changed)."""
+        return bool(self.password_enc and not self.password) or bool(self.passphrase_enc and not self.passphrase)
+
+    @property
     def configured(self) -> bool:
-        return bool(self.server and self.share and self.username and self.password_enc)
+        return bool(self.server and self.share and self.username and self.password) and not (
+            self.encrypt and not self.passphrase)
 
 
 class RunStatus(models.TextChoices):
