@@ -184,15 +184,6 @@ class ReviewQueueView(AiView):
         return Response({'results': items[:100], 'count': len(items)})
 
 
-class CorrespondenceRouteView(AiView):
-    permission_classes = [permissions.IsAuthenticated, IsRecordsOfficerOrAbove]
-
-    def post(self, request, pk):
-        self.require_enabled()
-        _rate_limit(request.user)
-        return Response(assist.route_correspondence(request.user, get_object_or_404(Correspondence, pk=pk)))
-
-
 class CorrespondenceDraftView(AiView):
     permission_classes = [permissions.IsAuthenticated, IsRecordsOfficerOrAbove]
 

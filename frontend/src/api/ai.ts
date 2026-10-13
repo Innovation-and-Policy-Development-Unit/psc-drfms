@@ -35,15 +35,6 @@ export interface ReviewItem {
   reasons: string[]
 }
 
-export interface RouteSuggestion {
-  department: { id: number; code: string; name: string } | null
-  assignees: Array<{ id: number; name: string; role: string }>
-  priority: string | null
-  reason: string
-  confidence: number
-  engine: string
-}
-
 export interface ParsedSearch {
   q: string
   filters: { documentType?: string; classificationLevel?: string; ministry?: string; recordSeries?: string; dateFrom?: string; dateTo?: string }
@@ -63,7 +54,6 @@ export const aiApi = {
       `/ai/records/${recordId}/apply-retention/`, { recordSeries }),
   markReviewed: (recordId: string) => client.post(`/ai/records/${recordId}/review/`),
   reviewQueue: () => client.get<{ results: ReviewItem[]; count: number }>('/ai/review-queue/'),
-  routeCorrespondence: (id: string) => client.post<RouteSuggestion>(`/ai/correspondence/${id}/route/`),
   draftReply: (id: string, instructions = '') =>
     client.post<{ draft: string; engine: string }>(`/ai/correspondence/${id}/draft-reply/`, { instructions }),
   parseSearch: (text: string) => client.post<ParsedSearch>('/ai/search/parse/', { text }),

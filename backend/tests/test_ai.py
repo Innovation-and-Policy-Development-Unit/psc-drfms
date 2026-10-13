@@ -275,30 +275,15 @@ class RecordActionTests(TestCase):
 @override_settings(**CLOUD)
 class AssistTests(TestCase):
     def setUp(self):
-        from apps.accounts.models import Department
         from apps.correspondence.models import Correspondence
         self.officer = make_user('o@t.gov.vu', UserRole.RECORDS_OFFICER)
         self.reader = make_user('reader@t.gov.vu', UserRole.READ_ONLY)
-        self.dept = Department.objects.create(name='Finance', code='FIN')
-        self.officer.department = self.dept
-        self.officer.save()
         self.letter = Correspondence.objects.create(
             direction='incoming', subject='Query on allowances', sender_name='A. Viro',
             correspondence_date=date(2024, 5, 1), created_by=self.officer,
         )
         self.client = APIClient()
         self.client.force_authenticate(self.officer)
-
-    def test_route_suggests_department_and_assignees_only_from_real_data(self):
-        answer = json.dumps({'department_code': 'FIN', 'priority': 'urgent', 'reason': 'Pay matter', 'confidence': 0.9})
-        with patch('apps.ai.llm._anthropic', return_value=answer):
-            data = self.client.post(f'/api/ai/correspondence/{self.letter.pk}/route/').json()
-        self.assertEqual(data['department']['code'], 'FIN')
-        self.assertEqual(data['assignees'][0]['id'], self.officer.pk)
-        self.assertEqual(data['priority'], 'urgent')
-        with patch('apps.ai.llm._anthropic', return_value=json.dumps({'department_code': 'INVENTED'})):
-            data = self.client.post(f'/api/ai/correspondence/{self.letter.pk}/route/').json()
-        self.assertIsNone(data['department'])
 
     def test_read_only_users_cannot_use_correspondence_assistants(self):
         self.client.force_authenticate(self.reader)

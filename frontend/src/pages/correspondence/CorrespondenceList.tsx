@@ -86,7 +86,7 @@ export default function CorrespondenceList() {
                 <th>Party</th>
                 <th>Date</th>
                 <th>Status</th>
-                {aiStatus?.enabled && <th><span className="sr-only">AI assistant</span></th>}
+                {aiStatus?.enabled && <th><span className="sr-only">Draft reply</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -103,7 +103,7 @@ export default function CorrespondenceList() {
                   <td className="capitalize text-xs">{c.status.replace('_', ' ')}</td>
                   {aiStatus?.enabled && (
                     <td>
-                      <button type="button" onClick={() => setAiItem(c)} title="Suggest routing or draft a reply" aria-label={`AI assistant for ${c.referenceNumber}`}
+                      <button type="button" onClick={() => setAiItem(c)} title="Draft a reply with AI" aria-label={`Draft a reply to ${c.referenceNumber}`}
                         className="rounded-full p-1.5 text-primary-500 hover:bg-primary-50 dark:hover:bg-white/10"><Sparkles size={15} /></button>
                     </td>
                   )}
@@ -114,7 +114,7 @@ export default function CorrespondenceList() {
         )}
       </Panel>
 
-      {aiItem && <CorrespondenceAiDialog item={aiItem} onClose={() => setAiItem(null)} onChanged={load} />}
+      {aiItem && <CorrespondenceAiDialog item={aiItem} onClose={() => setAiItem(null)} />}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">

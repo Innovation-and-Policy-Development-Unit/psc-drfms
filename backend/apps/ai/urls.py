@@ -12,6 +12,5 @@ urlpatterns = [
     path('records/<uuid:pk>/analyze/', views.RecordAnalyzeView.as_view(), name='ai-record-analyze'),
     path('records/<uuid:pk>/apply-retention/', views.ApplyRetentionView.as_view(), name='ai-apply-retention'),
     path('records/<uuid:pk>/review/', views.MarkReviewedView.as_view(), name='ai-mark-reviewed'),
-    path('correspondence/<uuid:pk>/route/', views.CorrespondenceRouteView.as_view(), name='ai-route'),
     path('correspondence/<uuid:pk>/draft-reply/', views.CorrespondenceDraftView.as_view(), name='ai-draft-reply'),
 ]
