@@ -29,3 +29,30 @@ class AppearanceSettings(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class OneDriveSettings(models.Model):
+    """Lets users import files from their own Microsoft 365 OneDrive (single row, pk=1).
+
+    Only public identifiers live here. Each user signs in to Microsoft in their own
+    browser; no Microsoft token or secret is ever sent to or stored by DRFMS.
+    """
+    enabled = models.BooleanField(default=False)
+    client_id = models.CharField(max_length=64, blank=True, help_text='Application (client) ID from Microsoft Entra ID')
+    tenant_id = models.CharField(max_length=64, blank=True, help_text='Directory (tenant) ID, or "organizations"')
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'OneDrive settings'
+        verbose_name_plural = 'OneDrive settings'
+
+    def __str__(self):
+        return f'OneDrive import ({"on" if self.enabled else "off"})'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

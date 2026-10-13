@@ -34,6 +34,7 @@ import AuditTrail from '@/pages/analytics/AuditTrail'
 import UserManagement from '@/pages/admin/UserManagement'
 import SystemHealth from '@/pages/admin/SystemHealth'
 import BackupSettings from '@/pages/admin/BackupSettings'
+import Microsoft365Settings from '@/pages/admin/Microsoft365Settings'
 import type { UserRole } from '@/types/api'
 
 const NO_RO: UserRole[] = ['reviewer', 'records_officer', 'director', 'commissioner', 'administrator']
@@ -91,6 +92,7 @@ export default function AppRouter() {
             <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/health" element={<SystemHealth />} />
             <Route path="/admin/backups" element={<BackupSettings />} />
+            <Route path="/admin/microsoft365" element={<Microsoft365Settings />} />
           </Route>
 
           <Route path="/records" element={<Navigate to="/browse" replace />} />

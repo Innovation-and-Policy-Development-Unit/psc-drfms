@@ -1,6 +1,6 @@
 import { useState, useRef, FormEvent, DragEvent, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { UploadCloud, X, FileUp } from 'lucide-react'
+import { UploadCloud, X, FileUp, Cloud } from 'lucide-react'
 import clsx from 'clsx'
 import { useDriveUI } from '@/context/DriveUIContext'
 import { useTransfers } from '@/context/TransferContext'
@@ -9,6 +9,8 @@ import { Panel } from '@/components/ui/Panel'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatFileSize } from '@/utils/fileType'
+import { onedriveApi, type OneDriveSettings } from '@/api/onedrive'
+import { OneDrivePicker } from '@/components/documents/OneDrivePicker'
 import {
   CLASSIFICATION_OPTIONS,
   DOCUMENT_TYPE_OPTIONS,
@@ -21,6 +23,8 @@ export default function RecordUpload() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<File[]>([])
   const [dragging, setDragging] = useState(false)
+  const [onedrive, setOnedrive] = useState<OneDriveSettings | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -32,6 +36,10 @@ export default function RecordUpload() {
     is_vital: false,
     change_summary: 'Initial upload',
   })
+
+  useEffect(() => {
+    onedriveApi.get().then(({ data }) => setOnedrive(data.enabled ? data : null)).catch(() => setOnedrive(null))
+  }, [])
 
   useEffect(() => {
     const pending = consumePendingUploadFile()
@@ -110,6 +118,14 @@ export default function RecordUpload() {
           <p className="text-sm text-muted mt-1">or drag and drop into Cloud Drive</p>
         </div>
 
+        {onedrive && (
+          <div className="flex justify-center mb-4">
+            <Button type="button" variant="secondary" onClick={() => setPickerOpen(true)}>
+              <Cloud size={16} className="inline mr-2" />Import from OneDrive
+            </Button>
+          </div>
+        )}
+
         {files.length > 0 && (
           <Panel className="p-0 mb-6 overflow-hidden">
             <div className="px-4 py-2 border-b border-registry label-overline">Upload queue</div>
@@ -182,6 +198,17 @@ export default function RecordUpload() {
           </Button>
         </div>
       </form>
+
+      {pickerOpen && onedrive && (
+        <OneDrivePicker
+          settings={onedrive}
+          onClose={() => setPickerOpen(false)}
+          onPick={(picked) => {
+            addFiles(picked)
+            setForm((f) => (f.change_summary === 'Initial upload' ? { ...f, change_summary: 'Imported from OneDrive' } : f))
+          }}
+        />
+      )}
     </PageShell>
   )
 }

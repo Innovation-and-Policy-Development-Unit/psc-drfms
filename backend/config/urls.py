@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/sharing/', include('apps.sharing.urls')),
     path('api/management/', include('apps.api_management.urls')),
     path('api/onlyoffice/', include('apps.onlyoffice.urls')),
+    path('api/integrations/', include('apps.core.integrations_urls')),
     path('api/backups/', include('apps.backups.urls')),
 
     # API schema / docs

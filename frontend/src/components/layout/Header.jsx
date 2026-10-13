@@ -44,6 +44,7 @@ const breadcrumbMap = {
   '/admin/users': ['Administration', 'Users'],
   '/admin/health': ['Administration', 'System Health'],
   '/admin/backups': ['Administration', 'Backup'],
+  '/admin/microsoft365': ['Administration', 'Microsoft 365'],
 }
 
 function typeIcon(type) {

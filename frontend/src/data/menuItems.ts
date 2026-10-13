@@ -2,7 +2,7 @@ import {
   LayoutDashboard, FolderOpen, GitBranch, Mail,
   Search, Shield, Users, BarChart3, Settings,
   Lock, Trash2, Eye, ClipboardList, AlertTriangle, CheckCircle,
-  Activity, Link, Clock, Star, Inbox, Upload, Tag, HardDrive,
+  Activity, Link, Clock, Star, Inbox, Upload, Tag, HardDrive, Cloud,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/types/api'
@@ -107,6 +107,7 @@ const menuItems: MenuGroup[] = [
       { label: 'Users', icon: Users, path: '/admin/users', roles: ADMIN },
       { label: 'System Health', icon: Activity, path: '/admin/health', roles: ADMIN },
       { label: 'Backup', icon: HardDrive, path: '/admin/backups', roles: ADMIN },
+      { label: 'Microsoft 365', icon: Cloud, path: '/admin/microsoft365', roles: ADMIN },
     ],
   },
 ]
