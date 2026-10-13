@@ -15,6 +15,7 @@ import PermissionsPanel from '@/components/record/PermissionsPanel'
 import GovernancePanel from '@/components/record/GovernancePanel'
 import LifecycleMap from '@/components/record/LifecycleMap'
 import AiSuggestionsPanel from '@/components/record/AiSuggestionsPanel'
+import DocumentAiPanel from '@/components/record/DocumentAiPanel'
 import SimilarRecords from '@/components/record/SimilarRecords'
 import TagsEditor from '@/components/record/TagsEditor'
 import PresenceAvatars from '@/components/record/PresenceAvatars'
@@ -270,6 +271,7 @@ export default function RecordDetail() {
                   <DetailField label="Custodian" value={record.custodianName ?? record.custodian_name} />
                   {record.description && <DetailField label="Description" value={record.description} />}
                   <TagsEditor recordId={id} tags={record.tags ?? []} canEdit={canDelete} onChanged={loadRecord} />
+                  <DocumentAiPanel record={record} canEdit={canDelete} onChanged={loadRecord} />
                   <AiSuggestionsPanel record={record} canEdit={canDelete} onApplied={loadRecord} />
                   <SimilarRecords recordId={id} />
                 </aside>

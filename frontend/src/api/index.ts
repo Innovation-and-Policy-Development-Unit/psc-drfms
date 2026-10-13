@@ -1,6 +1,7 @@
 export { default as client, unwrapList } from './client'
 export * as authApi from './auth'
 export * as recordsApi from './records'
+export { aiApi } from './ai'
 
 import client from './client'
 import type {

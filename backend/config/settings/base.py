@@ -49,6 +49,7 @@ LOCAL_APPS = [
     'apps.audit',
     'apps.notifications',
     'apps.search',
+    'apps.ai',
     'apps.compliance',
     'apps.collaboration',
     'apps.analytics',
@@ -310,6 +311,30 @@ OLLAMA_URL = env('OLLAMA_URL', default='http://ollama:11434')
 OLLAMA_EMBED_MODEL = env('OLLAMA_EMBED_MODEL', default='bge-m3')
 OLLAMA_TIMEOUT = env.int('OLLAMA_TIMEOUT', default=60)
 
+# Generative AI (Q&A, summaries, extraction, retention and sensitivity suggestions).
+#   LLM_PROVIDER       = 'none' (default: AI features off), 'anthropic', 'gemini' or 'ollama'
+#   LLM_LOCAL_PROVIDER = 'none' or 'ollama': used for records ABOVE LLM_EXTERNAL_MAX_CLASSIFICATION
+# Hybrid setup: LLM_PROVIDER=anthropic + LLM_LOCAL_PROVIDER=ollama. Records at or below the
+# ceiling go to the cloud model, everything above stays on your server. With no local
+# provider, records above the ceiling simply get no AI. Keys go in .env, never in code.
+LLM_PROVIDER = env('LLM_PROVIDER', default='none')
+LLM_LOCAL_PROVIDER = env('LLM_LOCAL_PROVIDER', default='none')
+LLM_EXTERNAL_MAX_CLASSIFICATION = env('LLM_EXTERNAL_MAX_CLASSIFICATION', default='internal')
+LLM_TIMEOUT = env.int('LLM_TIMEOUT', default=90)
+LLM_MAX_CONTEXT_CHARS = env.int('LLM_MAX_CONTEXT_CHARS', default=24000)
+LLM_RATE_LIMIT_PER_MINUTE = env.int('LLM_RATE_LIMIT_PER_MINUTE', default=20)
+ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY', default='')
+ANTHROPIC_MODEL = env('ANTHROPIC_MODEL', default='claude-sonnet-5-5')
+GEMINI_LLM_MODEL = env('GEMINI_LLM_MODEL', default='gemini-2.5-flash')
+OLLAMA_LLM_MODEL = env('OLLAMA_LLM_MODEL', default='llama3.1')
+OLLAMA_VISION_MODEL = env('OLLAMA_VISION_MODEL', default='')  # e.g. llava; empty = no vision on Ollama
+# Fill blank metadata automatically when the model is at least this sure (0 disables).
+# Only empty fields are ever filled; classification is never changed automatically.
+AI_AUTOFILE_CONFIDENCE = env.float('AI_AUTOFILE_CONFIDENCE', default=0.0)
+# Scanned pages Tesseract could not read are transcribed by a vision model.
+AI_VISION_OCR_ENABLED = env.bool('AI_VISION_OCR_ENABLED', default=True)
+AI_VISION_OCR_MAX_PAGES = env.int('AI_VISION_OCR_MAX_PAGES', default=10)
+
 # Session
 SESSION_COOKIE_AGE = env.int('SESSION_COOKIE_AGE', default=28800)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
@@ -323,7 +348,7 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=['http://localho
 
 # OCR
 TESSERACT_PATH = '/usr/bin/tesseract'
-OCR_LANGUAGES = 'eng+fra'
+OCR_LANGUAGES = env('OCR_LANGUAGES', default='eng+fra')
 
 # QR Codes
 QR_CODE_BASE_URL = env('QR_CODE_BASE_URL', default='http://localhost:3000')

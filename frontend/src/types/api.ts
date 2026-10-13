@@ -60,12 +60,31 @@ export interface RecordListItem {
   rank?: number
 }
 
-export interface AiSuggestion { value: string | null; confidence: number }
+export interface AiSuggestion {
+  value: unknown
+  confidence: number
+  label?: string
+  reason?: string
+  retentionYears?: number
+  retentionDate?: string
+}
+
+export interface SensitiveFlag {
+  category: string
+  label: string
+  severity: 'high' | 'medium'
+  count: number | null
+  example: string
+  minClassification: string
+}
 
 export interface RecordVersion {
   id: number
   aiSuggestions?: Record<string, AiSuggestion>
   aiProcessed?: boolean
+  aiSummary?: string
+  aiEngine?: string
+  aiReviewStatus?: '' | 'auto_filed' | 'needs_review' | 'reviewed'
   fileName?: string
   file_name?: string
   mimeType?: string

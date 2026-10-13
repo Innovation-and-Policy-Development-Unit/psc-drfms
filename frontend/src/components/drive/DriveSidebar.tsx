@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   Cloud, Home, Star, Users, Clock, Upload, Search, Inbox,
-  CheckSquare, Link2, Shield, BarChart3, ScrollText, Settings, PanelLeftClose, PanelLeft,
+  CheckSquare, Link2, Sparkles, ClipboardCheck, Shield, BarChart3, ScrollText, Settings, PanelLeftClose, PanelLeft,
 } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
@@ -39,11 +39,13 @@ const mainNav: NavDef[] = [
   { to: '/upload', labelKey: 'nav.upload', icon: Upload, roles: OFFICER },
   { to: '/search', labelKey: 'nav.search', icon: Search, roles: ALL },
   { to: '/inbox', labelKey: 'nav.inbox', icon: Inbox, roles: ALL, badge: true },
+  { to: '/ask', labelKey: 'nav.ask_ai', icon: Sparkles, roles: ALL },
 ]
 
 const moreNav: NavDef[] = [
   { to: '/workflows/my-tasks', labelKey: 'nav.approvals', icon: CheckSquare, roles: NO_RO },
   { to: '/sharing', labelKey: 'nav.shared_links', icon: Link2, roles: OFFICER },
+  { to: '/ai-review', labelKey: 'nav.ai_review', icon: ClipboardCheck, roles: OFFICER },
   { to: '/compliance/legal-holds', labelKey: 'nav.governance', icon: Shield, roles: OFFICER },
   { to: '/analytics', labelKey: 'nav.insights', icon: BarChart3, roles: DIRPLUS },
   { to: '/analytics/audit', labelKey: 'nav.audit_log', icon: ScrollText, roles: DIRPLUS },

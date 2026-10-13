@@ -166,6 +166,10 @@ class RecordVersion(models.Model):
     # AI metadata suggestions
     ai_suggestions = models.JSONField(default=dict, blank=True)
     ai_processed = models.BooleanField(default=False)
+    ai_summary = models.TextField(blank=True)
+    ai_engine = models.CharField(max_length=80, blank=True)  # e.g. 'anthropic:claude-sonnet-5-5'; empty = built-in heuristics
+    # '' | 'auto_filed' | 'needs_review' | 'reviewed'
+    ai_review_status = models.CharField(max_length=20, blank=True, db_index=True)
 
     # Digital signature
     is_signed = models.BooleanField(default=False)

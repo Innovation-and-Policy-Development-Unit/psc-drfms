@@ -5,6 +5,26 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+MIN_CHARS_PER_PAGE = 40  # below this a page is treated as unreadable by Tesseract
+
+
+def _vision_fallback(version, text, images):
+    """Re-read scans Tesseract could not (handwriting, poor quality) with a vision model.
+
+    Respects the classification gate; any failure keeps the Tesseract text.
+    """
+    from django.conf import settings as dj
+    if not images or not dj.AI_VISION_OCR_ENABLED or len(text.strip()) >= MIN_CHARS_PER_PAGE * len(images):
+        return text
+    try:
+        from apps.ai.vision import transcribe_pages
+        better = transcribe_pages(version.record, images[:dj.AI_VISION_OCR_MAX_PAGES])
+    except Exception as exc:  # AI is optional; never fail OCR because of it
+        logger.info('Vision OCR skipped for version %s: %s', version.id, exc)
+        return text
+    return better if len(better.strip()) > len(text.strip()) else text
+
+
 @shared_task(bind=True, max_retries=3)
 def process_record_ocr(self, version_id):
     """Extract text from uploaded document using pytesseract."""
@@ -15,18 +35,23 @@ def process_record_ocr(self, version_id):
         mime = version.mime_type.lower()
         text = ''
 
+        images = []  # PIL page images, kept so a vision model can retry unreadable scans
         if 'pdf' in mime:
             from pdf2image import convert_from_bytes
             import pytesseract
             pages = convert_from_bytes(file_content, dpi=300)
             texts = [pytesseract.image_to_string(p, lang=settings.OCR_LANGUAGES) for p in pages]
             text = '\n\n'.join(texts)
+            images = pages
         elif mime.startswith('image/'):
             import pytesseract
             from PIL import Image
             import io
             img = Image.open(io.BytesIO(file_content))
             text = pytesseract.image_to_string(img, lang=settings.OCR_LANGUAGES)
+            images = [img]
+
+        text = _vision_fallback(version, text, images)
 
         if text.strip():
             version.ocr_text = text.strip()
@@ -53,7 +78,8 @@ def process_record_ocr(self, version_id):
 def ai_tag_record(version_id):
     """Suggest metadata from the OCR text using the on-server heuristic suggester.
 
-    Runs entirely locally — no document text is sent to any external service.
+    This first pass runs entirely locally. The model-based pass (apps.ai) follows and
+    only ever sends text that the classification gate permits.
     """
     from .models import Record, RecordVersion
     from .suggest import suggest_metadata
@@ -70,6 +96,11 @@ def ai_tag_record(version_id):
     version.ai_suggestions = suggest_metadata(version.ocr_text, ministries)
     version.ai_processed = True
     version.save(update_fields=["ai_suggestions", "ai_processed"])
+
+    # Second pass: retention series, sensitive-data flags and (when a model is
+    # configured and permitted for this classification) richer extraction + summary.
+    from apps.ai.tasks import analyze_version
+    analyze_version.delay(str(version.id))
 
 
 @shared_task

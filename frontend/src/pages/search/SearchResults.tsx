@@ -3,12 +3,21 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Search, X, ChevronLeft, ChevronRight, Building2, CalendarDays, Lock, Star, FileSearch, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { searchApi, type SearchResponse, type SearchFacetValue } from '@/api'
+import { aiApi, aiErrorMessage } from '@/api/ai'
+import { useAiStatus } from '@/hooks/useAiStatus'
 import type { RecordListItem } from '@/types/api'
 import { ClassificationBadge, DocumentTypeBadge, DOC_TYPE_LABELS } from '@/lib/recordBadges'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 const FILTER_KEYS = ['document_type', 'classification_level', 'ministry', 'year'] as const
 type FilterKey = (typeof FILTER_KEYS)[number]
+// Set by "describe it in words"; the API already understands them
+const EXTRA_KEYS = ['date_from', 'date_to', 'record_series'] as const
+const EXTRA_LABELS: Record<(typeof EXTRA_KEYS)[number], (v: string) => string> = {
+  date_from: (v) => `From ${v}`,
+  date_to: (v) => `Until ${v}`,
+  record_series: () => 'Retention series',
+}
 
 const FACETS: Array<{ param: FilterKey; title: string; key: keyof SearchResponse['facets']; label?: (v: string) => string }> = [
   { param: 'document_type', title: 'Document type', key: 'documentType', label: (v) => DOC_TYPE_LABELS[v] ?? v },
@@ -45,6 +54,10 @@ export default function SearchResults() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const aiStatus = useAiStatus()
+  const [plain, setPlain] = useState('')
+  const [plainBusy, setPlainBusy] = useState(false)
+  const [plainNote, setPlainNote] = useState('')
 
   const update = (mutate: (p: URLSearchParams) => void, resetPage = true) => {
     const next = new URLSearchParams(params)
@@ -64,7 +77,30 @@ export default function SearchResults() {
   useEffect(() => { setInput(urlQuery) }, [urlQuery])
 
   const paramString = params.toString()
-  const hasCriteria = !!urlQuery || FILTER_KEYS.some((k) => params.get(k))
+  const hasCriteria = !!urlQuery || FILTER_KEYS.some((k) => params.get(k)) || EXTRA_KEYS.some((k) => params.get(k))
+
+  const describeSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!plain.trim() || plainBusy) return
+    setPlainBusy(true)
+    setPlainNote('')
+    try {
+      const { data } = await aiApi.parseSearch(plain)
+      const f = data.filters
+      const next = new URLSearchParams()
+      if (data.q) next.set('q', data.q)
+      if (f.documentType) next.set('document_type', f.documentType)
+      if (f.classificationLevel) next.set('classification_level', f.classificationLevel)
+      if (f.ministry) next.set('ministry', f.ministry)
+      if (f.recordSeries) next.set('record_series', f.recordSeries)
+      if (f.dateFrom) next.set('date_from', f.dateFrom)
+      if (f.dateTo) next.set('date_to', f.dateTo)
+      setParams(next, { replace: true })
+      setPlainNote(data.unsupported.length ? `Not searchable yet: ${data.unsupported.join('; ')}` : '')
+    } catch (err) {
+      setPlainNote(aiErrorMessage(err))
+    } finally { setPlainBusy(false) }
+  }
 
   useEffect(() => {
     if (!hasCriteria) { setData(null); return }
@@ -114,6 +150,24 @@ export default function SearchResults() {
         )}
       </div>
 
+      {aiStatus?.enabled && (
+        <form onSubmit={describeSearch} className="space-y-1">
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Sparkles size={15} className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-primary-500" />
+              <input value={plain} onChange={(e) => setPlain(e.target.value)} maxLength={400}
+                placeholder='Or describe it in your own words: "contracts from the Ministry of Finance last year"'
+                aria-label="Describe what you are looking for"
+                className="h-10 w-full rounded-xl border border-gray-200 bg-white ps-9 pe-3 text-sm placeholder:text-gray-400 focus:border-primary-300 focus:outline-none focus:ring-4 focus:ring-primary-500/10 dark:border-gray-800 dark:bg-white/[0.03] dark:text-white" />
+            </div>
+            <button type="submit" disabled={plainBusy || !plain.trim()} className="rounded-xl border border-primary-200 px-4 text-sm font-medium text-primary-600 hover:bg-primary-50 disabled:opacity-50 dark:border-primary-500/30 dark:text-primary-300">
+              {plainBusy ? 'Working…' : 'Set filters'}
+            </button>
+          </div>
+          {plainNote && <p className="text-xs text-amber-700 dark:text-amber-300">{plainNote}</p>}
+        </form>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label className="inline-flex cursor-pointer select-none items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
           <input
@@ -132,7 +186,7 @@ export default function SearchResults() {
         )}
       </div>
 
-      {active.length > 0 && (
+      {(active.length > 0 || EXTRA_KEYS.some((k) => params.get(k))) && (
         <div className="flex flex-wrap items-center gap-2">
           {active.map((k) => (
             <button
@@ -144,7 +198,13 @@ export default function SearchResults() {
               {labelFor(k, params.get(k) as string)} <X size={12} />
             </button>
           ))}
-          <button type="button" onClick={() => update((p) => FILTER_KEYS.forEach((k) => p.delete(k)))} className="text-xs text-gray-500 hover:underline">
+          {EXTRA_KEYS.filter((k) => params.get(k)).map((k) => (
+            <button key={k} type="button" onClick={() => update((p) => p.delete(k))}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-600 hover:bg-primary-100 dark:bg-primary-500/15 dark:text-primary-300">
+              {EXTRA_LABELS[k](params.get(k) as string)} <X size={12} />
+            </button>
+          ))}
+          <button type="button" onClick={() => update((p) => [...FILTER_KEYS, ...EXTRA_KEYS].forEach((k) => p.delete(k)))} className="text-xs text-gray-500 hover:underline">
             Clear all
           </button>
         </div>
