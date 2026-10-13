@@ -8,8 +8,6 @@ from rest_framework.exceptions import Throttled
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.permissions import IsRecordsOfficerOrAbove
-from apps.correspondence.models import Correspondence
 from apps.records.authorization import can_edit, ensure_record_access, viewable_records
 from apps.records.models import Record, RecordSeries, RecordVersion
 
@@ -182,17 +180,6 @@ class ReviewQueueView(AiView):
                 ],
             })
         return Response({'results': items[:100], 'count': len(items)})
-
-
-class CorrespondenceDraftView(AiView):
-    permission_classes = [permissions.IsAuthenticated, IsRecordsOfficerOrAbove]
-
-    def post(self, request, pk):
-        self.require_enabled()
-        _rate_limit(request.user)
-        return Response(assist.draft_reply(
-            request.user, get_object_or_404(Correspondence, pk=pk), str(request.data.get('instructions') or ''),
-        ))
 
 
 class SearchParseView(AiView):

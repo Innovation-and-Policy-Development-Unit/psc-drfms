@@ -8,9 +8,6 @@ import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Sparkles } from 'lucide-react'
-import { useAiStatus } from '@/hooks/useAiStatus'
-import CorrespondenceAiDialog from '@/components/correspondence/CorrespondenceAiDialog'
 
 const DIRECTION_TONE = { incoming: 'info', outgoing: 'success', internal: 'neutral' } as const
 
@@ -19,8 +16,6 @@ export default function CorrespondenceList() {
   const [loading, setLoading] = useState(true)
   const [direction, setDirection] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const aiStatus = useAiStatus()
-  const [aiItem, setAiItem] = useState<Correspondence | null>(null)
   const [form, setForm] = useState({
     direction: 'incoming',
     subject: '',
@@ -86,7 +81,6 @@ export default function CorrespondenceList() {
                 <th>Party</th>
                 <th>Date</th>
                 <th>Status</th>
-                {aiStatus?.enabled && <th><span className="sr-only">Draft reply</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -101,20 +95,12 @@ export default function CorrespondenceList() {
                   <td className="text-xs">{c.senderName || c.recipientName || '—'}</td>
                   <td className="text-xs text-muted">{c.correspondenceDate}</td>
                   <td className="capitalize text-xs">{c.status.replace('_', ' ')}</td>
-                  {aiStatus?.enabled && (
-                    <td>
-                      <button type="button" onClick={() => setAiItem(c)} title="Draft a reply with AI" aria-label={`Draft a reply to ${c.referenceNumber}`}
-                        className="rounded-full p-1.5 text-primary-500 hover:bg-primary-50 dark:hover:bg-white/10"><Sparkles size={15} /></button>
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </Panel>
-
-      {aiItem && <CorrespondenceAiDialog item={aiItem} onClose={() => setAiItem(null)} />}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">

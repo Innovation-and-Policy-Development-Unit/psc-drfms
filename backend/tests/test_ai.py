@@ -273,26 +273,11 @@ class RecordActionTests(TestCase):
 
 
 @override_settings(**CLOUD)
-class AssistTests(TestCase):
+class SearchParseTests(TestCase):
     def setUp(self):
-        from apps.correspondence.models import Correspondence
         self.officer = make_user('o@t.gov.vu', UserRole.RECORDS_OFFICER)
-        self.reader = make_user('reader@t.gov.vu', UserRole.READ_ONLY)
-        self.letter = Correspondence.objects.create(
-            direction='incoming', subject='Query on allowances', sender_name='A. Viro',
-            correspondence_date=date(2024, 5, 1), created_by=self.officer,
-        )
         self.client = APIClient()
         self.client.force_authenticate(self.officer)
-
-    def test_read_only_users_cannot_use_correspondence_assistants(self):
-        self.client.force_authenticate(self.reader)
-        self.assertEqual(self.client.post(f'/api/ai/correspondence/{self.letter.pk}/draft-reply/').status_code, 403)
-
-    def test_draft_reply(self):
-        with patch('apps.ai.llm._anthropic', return_value='Dear A. Viro, thank you for your query.'):
-            data = self.client.post(f'/api/ai/correspondence/{self.letter.pk}/draft-reply/', {'instructions': 'be brief'}, format='json').json()
-        self.assertTrue(data['draft'].startswith('Dear'))
 
     def test_search_parse_keeps_only_valid_filters(self):
         Record.objects.create(title='C', custodian=self.officer, author=self.officer, originating_ministry='Ministry of Finance')

@@ -54,8 +54,6 @@ export const aiApi = {
       `/ai/records/${recordId}/apply-retention/`, { recordSeries }),
   markReviewed: (recordId: string) => client.post(`/ai/records/${recordId}/review/`),
   reviewQueue: () => client.get<{ results: ReviewItem[]; count: number }>('/ai/review-queue/'),
-  draftReply: (id: string, instructions = '') =>
-    client.post<{ draft: string; engine: string }>(`/ai/correspondence/${id}/draft-reply/`, { instructions }),
   parseSearch: (text: string) => client.post<ParsedSearch>('/ai/search/parse/', { text }),
 }
 
