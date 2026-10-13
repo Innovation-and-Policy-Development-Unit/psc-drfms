@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/sharing/', include('apps.sharing.urls')),
     path('api/management/', include('apps.api_management.urls')),
     path('api/onlyoffice/', include('apps.onlyoffice.urls')),
+    path('api/backups/', include('apps.backups.urls')),
 
     # API schema / docs
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

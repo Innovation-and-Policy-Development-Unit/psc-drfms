@@ -55,6 +55,7 @@ LOCAL_APPS = [
     'apps.sharing',
     'apps.api_management',
     'apps.onlyoffice',
+    'apps.backups',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -245,6 +246,11 @@ CELERY_BEAT_SCHEDULE = {
     'retention-disposition-scan': {
         'task': 'apps.compliance.tasks.scan_retention_due',
         'schedule': crontab(hour=2, minute=0),
+    },
+    # Checks the administrator's backup schedule hourly; starts a run only when it is due.
+    'backup-schedule-check': {
+        'task': 'apps.backups.tasks.run_scheduled_backup',
+        'schedule': crontab(minute=5),
     },
 }
 

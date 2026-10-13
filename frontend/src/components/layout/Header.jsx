@@ -43,6 +43,7 @@ const breadcrumbMap = {
   '/analytics/audit': ['Analytics', 'Audit log'],
   '/admin/users': ['Administration', 'Users'],
   '/admin/health': ['Administration', 'System Health'],
+  '/admin/backups': ['Administration', 'Backup'],
 }
 
 function typeIcon(type) {

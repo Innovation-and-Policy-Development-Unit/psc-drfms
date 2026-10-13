@@ -33,6 +33,7 @@ import AnalyticsDashboard from '@/pages/analytics/AnalyticsDashboard'
 import AuditTrail from '@/pages/analytics/AuditTrail'
 import UserManagement from '@/pages/admin/UserManagement'
 import SystemHealth from '@/pages/admin/SystemHealth'
+import BackupSettings from '@/pages/admin/BackupSettings'
 import type { UserRole } from '@/types/api'
 
 const NO_RO: UserRole[] = ['reviewer', 'records_officer', 'director', 'commissioner', 'administrator']
@@ -89,6 +90,7 @@ export default function AppRouter() {
           <Route element={<RequireRole roles={ADMIN} />}>
             <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/health" element={<SystemHealth />} />
+            <Route path="/admin/backups" element={<BackupSettings />} />
           </Route>
 
           <Route path="/records" element={<Navigate to="/browse" replace />} />
