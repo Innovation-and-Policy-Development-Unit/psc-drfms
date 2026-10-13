@@ -167,6 +167,10 @@ class RecordVersion(models.Model):
     ai_suggestions = models.JSONField(default=dict, blank=True)
     ai_processed = models.BooleanField(default=False)
     ai_summary = models.TextField(blank=True)
+    # '' (never attempted / AI not permitted) | 'pending' | 'ready' | 'failed'
+    ai_summary_status = models.CharField(max_length=10, blank=True)
+    # sha256 of the OCR text the summary was written from; the summary is kept while it still matches
+    ai_summary_hash = models.CharField(max_length=64, blank=True)
     ai_engine = models.CharField(max_length=80, blank=True)  # e.g. 'anthropic:claude-sonnet-5-5'; empty = built-in heuristics
     # '' | 'auto_filed' | 'needs_review' | 'reviewed'
     ai_review_status = models.CharField(max_length=20, blank=True, db_index=True)

@@ -83,6 +83,7 @@ export interface RecordVersion {
   aiSuggestions?: Record<string, AiSuggestion>
   aiProcessed?: boolean
   aiSummary?: string
+  aiSummaryStatus?: '' | 'pending' | 'ready' | 'failed'
   aiEngine?: string
   aiReviewStatus?: '' | 'auto_filed' | 'needs_review' | 'reviewed'
   fileName?: string

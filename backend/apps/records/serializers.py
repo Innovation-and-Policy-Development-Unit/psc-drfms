@@ -18,14 +18,14 @@ class RecordVersionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'version_number', 'file_name', 'file_size', 'mime_type',
             'content_hash', 'ocr_text', 'ocr_processed', 'ai_suggestions', 'ai_processed',
-            'ai_summary', 'ai_engine', 'ai_review_status',
+            'ai_summary', 'ai_summary_status', 'ai_engine', 'ai_review_status',
             'is_signed', 'signature_info', 'change_summary',
             'created_by', 'created_by_name', 'created_at',
             'file_url', 'preview_url',
         ]
         read_only_fields = [
             'content_hash', 'ocr_text', 'ocr_processed', 'ai_suggestions', 'ai_processed',
-            'ai_summary', 'ai_engine', 'ai_review_status', 'is_signed',
+            'ai_summary', 'ai_summary_status', 'ai_engine', 'ai_review_status', 'is_signed',
         ]
 
     def _build_version_url(self, obj, inline=False):

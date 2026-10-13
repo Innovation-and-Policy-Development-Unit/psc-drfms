@@ -16,7 +16,9 @@ export default function DocumentAiPanel({ record, canEdit, onChanged }: Props) {
   const version = record.latestVersion ?? record.latest_version
   const summary = version?.aiSummary
   const engine = version?.aiEngine
-  const [queued, setQueued] = useState(false)
+  const summaryStatus = version?.aiSummaryStatus ?? ''
+  const writing = summaryStatus === 'pending'
+  const [timedOut, setTimedOut] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -24,22 +26,21 @@ export default function DocumentAiPanel({ record, canEdit, onChanged }: Props) {
   const [busy, setBusy] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { setMessages([]); setQueued(false); setError('') }, [record.id])
+  useEffect(() => { setMessages([]); setTimedOut(false); setError('') }, [record.id])
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest' }) }, [messages, busy])
 
-  // A queued summary lands on the record a few seconds later: poll briefly
+  // The summary is stored once it is written; while it is being written, check back for a while
   useEffect(() => {
-    if (!queued) return
+    if (!writing) { setTimedOut(false); return }
     let tries = 0
     const t = setInterval(() => {
       tries += 1
       onChanged()
-      if (tries >= 8) { clearInterval(t); setQueued(false) }
+      if (tries >= 20) { clearInterval(t); setTimedOut(true) }
     }, 4000)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queued])
-  useEffect(() => { if (queued && summary) setQueued(false) }, [summary, queued])
+  }, [writing])
 
   if (!version || (!status?.enabled && !summary)) return null
 
@@ -47,7 +48,8 @@ export default function DocumentAiPanel({ record, canEdit, onChanged }: Props) {
     setError('')
     try {
       await aiApi.summarize(record.id)
-      setQueued(true)
+      setTimedOut(false)
+      onChanged()
     } catch (e) { setError(aiErrorMessage(e)) }
   }
 
@@ -76,18 +78,27 @@ export default function DocumentAiPanel({ record, canEdit, onChanged }: Props) {
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-500 text-white"><Sparkles size={14} /></span>
         <h3 className="font-sans text-sm font-semibold text-gray-900 dark:text-white">AI summary</h3>
         {canEdit && status?.enabled && (
-          <button type="button" onClick={regenerate} disabled={queued} title="Write a fresh summary"
+          <button type="button" onClick={regenerate} disabled={writing && !timedOut} title="Write a fresh summary (replaces the saved one)"
             className="ms-auto rounded-full p-1.5 text-gray-400 hover:bg-gray-100 disabled:opacity-50 dark:hover:bg-white/10">
-            <RefreshCw size={14} className={queued ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={writing && !timedOut ? 'animate-spin' : ''} />
           </button>
         )}
       </div>
 
       {summary ? (
         <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-200">{summary}</p>
+      ) : writing && !timedOut ? (
+        <p className="mt-3 text-xs text-gray-500">Writing the summary…</p>
+      ) : summaryStatus === 'failed' || timedOut ? (
+        <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+          The summary could not be written (the AI service was busy or unavailable).{' '}
+          {canEdit && status?.enabled
+            ? <button type="button" onClick={regenerate} className="font-medium underline">Try again</button>
+            : 'Ask someone with edit access to try again.'}
+        </p>
       ) : (
         <p className="mt-3 text-xs text-gray-500">
-          {queued ? 'Writing the summary…' : 'No summary yet. It is written automatically after a document is scanned.'}
+          No summary yet. It is written once, automatically, after a document is scanned, and then saved.
         </p>
       )}
 

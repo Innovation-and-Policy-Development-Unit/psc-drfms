@@ -96,6 +96,7 @@ class RecordSummaryView(_EditRecordView):
         if llm.provider_for(record.classification_level) is None:
             raise llm.LLMUnavailable('AI may not read records of this classification.')
         _rate_limit(request.user)
+        RecordVersion.objects.filter(pk=version.pk).update(ai_summary_status='pending')
         summarize_version.delay(version.pk)
         return Response({'queued': True}, status=status.HTTP_202_ACCEPTED)
 

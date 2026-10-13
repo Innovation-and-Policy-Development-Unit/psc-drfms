@@ -291,3 +291,126 @@ class SearchParseTests(TestCase):
         self.assertEqual(data['filters'], {'documentType': 'contract', 'dateFrom': '2024-01-01'})  # camel-cased by the API renderer
         self.assertEqual(data['q'], 'contracts')
         self.assertEqual(data['unsupported'], ['amount over 1M VUV'])
+
+
+def _analysis_json(summary='First summary.'):
+    return json.dumps({'title': 'T', 'document_type': 'circular', 'summary': summary, 'confidence': {}})
+
+
+@override_settings(**CLOUD)
+class SummaryPersistenceTests(TestCase):
+    """The summary is written once, stored, and only replaced on request or when the text changes."""
+
+    def setUp(self):
+        self.owner = make_user('o@t.gov.vu', UserRole.RECORDS_OFFICER)
+        self.record = make_record(self.owner, 'Circular', 'The commission decided on leave.', classification_level='internal')
+        self.version = self.record.versions.first()
+
+    def _analyse(self, summary):
+        from apps.ai.tasks import run_analysis
+        with patch('apps.ai.llm._anthropic', return_value=_analysis_json(summary)):
+            run_analysis(self.version.pk)
+        self.version.refresh_from_db()
+
+    def test_first_analysis_stores_summary_and_marks_ready(self):
+        self._analyse('First summary.')
+        self.assertEqual(self.version.ai_summary, 'First summary.')
+        self.assertEqual(self.version.ai_summary_status, 'ready')
+        self.assertTrue(self.version.ai_summary_hash)
+
+    def test_reanalysis_keeps_a_valid_summary(self):
+        self._analyse('First summary.')
+        self._analyse('A different summary.')
+        self.assertEqual(self.version.ai_summary, 'First summary.')
+
+    def test_changed_text_replaces_the_summary(self):
+        self._analyse('First summary.')
+        RecordVersion.objects.filter(pk=self.version.pk).update(ocr_text='Completely new scanned text.')
+        self._analyse('Second summary.')
+        self.assertEqual(self.version.ai_summary, 'Second summary.')
+
+    def test_legacy_summary_without_hash_is_kept_and_adopted(self):
+        RecordVersion.objects.filter(pk=self.version.pk).update(ai_summary='Old one.', ai_summary_status='ready')
+        self._analyse('New one.')
+        self.assertEqual(self.version.ai_summary, 'Old one.')
+        self.assertTrue(self.version.ai_summary_hash)
+
+    def test_explicit_regenerate_replaces_it(self):
+        from apps.ai.tasks import run_summary
+        self._analyse('First summary.')
+        with patch('apps.ai.llm._anthropic', return_value='Fresh summary.'):
+            run_summary(self.version.pk)
+        self.version.refresh_from_db()
+        self.assertEqual(self.version.ai_summary, 'Fresh summary.')
+
+    def test_failure_ends_as_failed_when_there_is_no_summary_and_ready_when_there_is(self):
+        from apps.ai.tasks import mark_summary_failed, run_analysis
+        with patch('apps.ai.llm._anthropic', side_effect=llm.LLMUnavailable('HTTP 503')):
+            with self.assertRaises(llm.LLMUnavailable):
+                run_analysis(self.version.pk)
+        self.version.refresh_from_db()
+        self.assertEqual(self.version.ai_summary_status, 'pending')
+        mark_summary_failed(self.version.pk)
+        self.version.refresh_from_db()
+        self.assertEqual(self.version.ai_summary_status, 'failed')
+        # with an existing summary a failed regenerate falls back to it
+        RecordVersion.objects.filter(pk=self.version.pk).update(ai_summary='Kept.', ai_summary_status='pending')
+        mark_summary_failed(self.version.pk)
+        self.version.refresh_from_db()
+        self.assertEqual((self.version.ai_summary, self.version.ai_summary_status), ('Kept.', 'ready'))
+
+    def test_regenerate_endpoint_marks_pending_and_queues(self):
+        client = APIClient()
+        client.force_authenticate(self.owner)
+        with patch('apps.ai.views.summarize_version.delay') as queued:
+            res = client.post(f'/api/ai/records/{self.record.pk}/summary/')
+        self.assertEqual(res.status_code, 202)
+        queued.assert_called_once_with(self.version.pk)
+        self.version.refresh_from_db()
+        self.assertEqual(self.version.ai_summary_status, 'pending')
+
+    def test_opening_a_record_never_calls_the_model(self):
+        self._analyse('First summary.')
+        client = APIClient()
+        client.force_authenticate(self.owner)
+        before = AiCallLog.objects.count()
+        with patch('apps.ai.llm._anthropic') as cloud:
+            data = client.get(f'/api/records/{self.record.pk}/').json()
+            client.get(f'/api/records/{self.record.pk}/')
+        cloud.assert_not_called()
+        self.assertEqual(AiCallLog.objects.count(), before)
+        self.assertEqual(data['latestVersion']['aiSummary'], 'First summary.')
+        self.assertEqual(data['latestVersion']['aiSummaryStatus'], 'ready')
+
+
+@override_settings(**CLOUD)
+class BackfillCommandTests(TestCase):
+    def setUp(self):
+        self.owner = make_user('o@t.gov.vu', UserRole.RECORDS_OFFICER)
+        self.needs = make_record(self.owner, 'Old doc', 'Some older scanned text.', classification_level='internal')
+        self.has = make_record(self.owner, 'Done doc', 'Already summarised.', classification_level='internal')
+        RecordVersion.objects.filter(record=self.has).update(ai_summary='Existing.', ai_summary_status='ready')
+        self.secret = make_record(self.owner, 'Secret doc', 'Cannot go to the cloud.', classification_level='secret')
+
+    def _run(self, *args):
+        from io import StringIO
+
+        from django.core.management import call_command
+        out = StringIO()
+        with patch('apps.ai.llm._anthropic', return_value=_analysis_json('Backfilled.')) as cloud:
+            call_command('ai_backfill', '--delay', '0', *args, stdout=out, stderr=StringIO())
+        return out.getvalue(), cloud
+
+    def test_dry_run_changes_nothing_and_reports_skips(self):
+        out, cloud = self._run('--dry-run')
+        cloud.assert_not_called()
+        self.assertIn('1 document(s) need a summary; 1 skipped', out)
+
+    def test_backfill_fills_only_what_is_missing_and_is_repeatable(self):
+        self._run()
+        self.assertEqual(self.needs.versions.first().ai_summary, 'Backfilled.')
+        self.assertEqual(self.has.versions.first().ai_summary, 'Existing.')
+        self.assertEqual(self.secret.versions.first().ai_summary, '')
+        out, cloud = self._run()
+        cloud.assert_not_called()
+        self.assertIn('0 document(s) need a summary', out)
