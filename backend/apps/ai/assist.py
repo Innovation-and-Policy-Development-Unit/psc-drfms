@@ -1,4 +1,5 @@
 """Turns a plain-English request into the search filters the search page already understands."""
+import re
 from datetime import date
 
 from apps.records.models import ClassificationLevel, DocumentType, Record, RecordSeries
