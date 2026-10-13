@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, drive_views
 
 urlpatterns = [
     path('', views.RecordListCreateView.as_view(), name='record-list'),
@@ -19,4 +19,9 @@ urlpatterns = [
     path('<uuid:pk>/audit/', views.RecordAuditLogView.as_view(), name='record-audit'),
     path('bulk/', views.RecordBulkUpdateView.as_view(), name='record-bulk'),
     path('series/', views.RecordSeriesListView.as_view(), name='record-series-list'),
+    path('storage/', drive_views.StorageUsageView.as_view(), name='record-storage'),
+    path('pins/', drive_views.PinListCreateView.as_view(), name='record-pins'),
+    path('pins/<int:pk>/', drive_views.PinDeleteView.as_view(), name='record-pin-delete'),
+    path('new-document/', drive_views.NewDocumentView.as_view(), name='record-new-document'),
+    path('<uuid:pk>/thumbnail/', drive_views.RecordThumbnailView.as_view(), name='record-thumbnail'),
 ]

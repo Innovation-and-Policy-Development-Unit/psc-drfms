@@ -175,6 +175,10 @@ class RecordVersion(models.Model):
     # '' | 'auto_filed' | 'needs_review' | 'reviewed'
     ai_review_status = models.CharField(max_length=20, blank=True, db_index=True)
 
+    # First-page preview for the file browser, rendered on first request (see thumbnails.py)
+    thumbnail = models.ImageField(upload_to='records/thumbnails/', blank=True)
+    thumbnail_failed = models.BooleanField(default=False)
+
     # Digital signature
     is_signed = models.BooleanField(default=False)
     signature_info = models.JSONField(default=dict, blank=True)
@@ -192,6 +196,21 @@ class RecordVersion(models.Model):
 
     def compute_hash(self, file_content: bytes) -> str:
         return hashlib.sha256(file_content).hexdigest()
+
+
+class PinnedView(models.Model):
+    """A user's Quick access shortcut: a saved location in the app, e.g. /browse?record_series=3."""
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='pinned_views')
+    label = models.CharField(max_length=80)
+    target = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        unique_together = [['user', 'target']]
+
+    def __str__(self):
+        return f'{self.user_id}: {self.label}'
 
 
 class RecordStar(models.Model):

@@ -336,6 +336,9 @@ AI_AUTOFILE_CONFIDENCE = env.float('AI_AUTOFILE_CONFIDENCE', default=0.0)
 AI_VISION_OCR_ENABLED = env.bool('AI_VISION_OCR_ENABLED', default=True)
 AI_VISION_OCR_MAX_PAGES = env.int('AI_VISION_OCR_MAX_PAGES', default=10)
 
+# Storage meter in the sidebar: quota in GB (0 = show usage only, no quota bar)
+STORAGE_QUOTA_GB = env.int('STORAGE_QUOTA_GB', default=0)
+
 # Session
 SESSION_COOKIE_AGE = env.int('SESSION_COOKIE_AGE', default=28800)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False

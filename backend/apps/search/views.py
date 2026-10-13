@@ -23,6 +23,7 @@ FACET_FILTERS = {
     'document_type': 'document_type',
     'classification_level': 'classification_level',
     'record_series': 'record_series_id',
+    'custodian': 'custodian_id',
 }
 
 
@@ -123,6 +124,16 @@ class UnifiedSearchView(APIView):
                 {'value': str(r['record_series_id']), 'label': r['record_series__name'], 'count': r['n']}
                 for r in apply(base, 'record_series').filter(record_series__isnull=False)
                 .values('record_series_id', 'record_series__name')
+                .annotate(n=Count('id')).order_by('-n')[:12]
+            ],
+            'custodian': [
+                {
+                    'value': str(r['custodian_id']),
+                    'label': (r['custodian__first_name'] + ' ' + r['custodian__last_name']).strip() or r['custodian__email'],
+                    'count': r['n'],
+                }
+                for r in apply(base, 'custodian').filter(custodian__isnull=False)
+                .values('custodian_id', 'custodian__first_name', 'custodian__last_name', 'custodian__email')
                 .annotate(n=Count('id')).order_by('-n')[:12]
             ],
             'year': [

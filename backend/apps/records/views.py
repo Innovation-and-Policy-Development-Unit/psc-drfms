@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
-from django.db.models import Q, Count, OuterRef, Subquery
+from django.db.models import Q, Count, OuterRef, Subquery, Exists, Case, When, IntegerField, Value
+from django.db.models.functions import Left
 from django.http import FileResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -12,7 +13,8 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 import hashlib
 
 from .models import Record, RecordVersion, RecordSeries, DocumentPermission, RecordStar
-from .authorization import ensure_record_access, visible_records_q
+from .authorization import CLASSIFICATION_RANK, ensure_record_access, visible_records_q
+from apps.sharing.models import SharedLink
 from .tasks import process_record_ocr, check_duplicate_on_upload
 from .serializers import (
     RecordListSerializer, RecordDetailSerializer, RecordCreateSerializer,
@@ -24,13 +26,26 @@ from apps.audit.models import AuditLog
 from apps.audit.serializers import AuditLogSerializer
 
 
+# ?file_type= quick filters, matched on the latest version's mime type
+FILE_TYPE_FILTERS = {
+    'pdf': Q(mime_type__icontains='pdf'),
+    'word': Q(mime_type__icontains='wordprocessingml') | Q(mime_type__icontains='msword') | Q(mime_type__icontains='opendocument.text'),
+    'excel': Q(mime_type__icontains='spreadsheetml') | Q(mime_type__icontains='ms-excel') | Q(mime_type__icontains='opendocument.spreadsheet') | Q(mime_type__icontains='csv'),
+    'powerpoint': Q(mime_type__icontains='presentationml') | Q(mime_type__icontains='ms-powerpoint') | Q(mime_type__icontains='opendocument.presentation'),
+    'image': Q(mime_type__istartswith='image/'),
+}
+
+
 class RecordListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['document_type', 'classification_level', 'record_series', 'is_vital', 'is_on_legal_hold', 'is_draft', 'custodian']
+    filterset_fields = ['document_type', 'classification_level', 'record_series', 'is_vital', 'is_on_legal_hold', 'is_draft', 'custodian', 'originating_ministry']
     search_fields = ['title', 'reference_number', 'description', 'originating_ministry']
-    ordering_fields = ['created_at', 'updated_at', 'document_date', 'title']
+    ordering_fields = [
+        'created_at', 'updated_at', 'document_date', 'title', 'reference_number', 'document_type',
+        'retention_date', 'file_size', 'classification_rank',
+    ]
     ordering = ['-created_at']
 
     def get_serializer_class(self):
@@ -53,9 +68,24 @@ class RecordListCreateView(generics.ListCreateAPIView):
                 mime_type=Subquery(latest_version.values('mime_type')[:1]),
                 file_size=Subquery(latest_version.values('file_size')[:1]),
                 _user_starred=Count('stars', filter=Q(stars__user=user), distinct=True),
+                _summary_preview=Left(Subquery(latest_version.values('ai_summary')[:1]), 160),
+                _is_shared=Exists(SharedLink.objects.filter(record=OuterRef('pk'), is_active=True))
+                | Exists(DocumentPermission.objects.filter(record=OuterRef('pk'))),
+                classification_rank=Case(
+                    *[When(classification_level=level, then=Value(rank)) for level, rank in CLASSIFICATION_RANK.items()],
+                    default=Value(99), output_field=IntegerField(),
+                ),
             )
         )
         qs = qs.filter(visible_records_q(user)).distinct()
+
+        year = self.request.query_params.get('year')
+        if year and year.isdigit():
+            qs = qs.filter(document_date__year=int(year))
+
+        file_type = FILE_TYPE_FILTERS.get(self.request.query_params.get('file_type', ''))
+        if file_type:
+            qs = qs.filter(file_type)
 
         if self.request.query_params.get('starred') == 'true':
             qs = qs.filter(stars__user=user)
@@ -65,7 +95,6 @@ class RecordListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(tags__contains=[tag])
 
         if self.request.query_params.get('shared_with_me') == 'true':
-            from apps.sharing.models import SharedLink
             email = (user.email or '').strip()
             shared_q = Q(permissions__user=user, permissions__can_view=True)
             if email:

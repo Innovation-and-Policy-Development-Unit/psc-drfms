@@ -52,6 +52,8 @@ class RecordListSerializer(serializers.ModelSerializer):
     mime_type = serializers.CharField(read_only=True, default='')
     file_size = serializers.IntegerField(read_only=True, default=0)
     is_starred = serializers.SerializerMethodField()
+    summary_preview = serializers.SerializerMethodField()
+    is_shared = serializers.SerializerMethodField()
 
     class Meta:
         model = Record
@@ -61,8 +63,16 @@ class RecordListSerializer(serializers.ModelSerializer):
             'custodian', 'custodian_name', 'document_date', 'is_vital',
             'is_on_legal_hold', 'is_draft', 'tags', 'version_count',
             'file_name', 'mime_type', 'file_size', 'is_starred',
+            'retention_date', 'summary_preview', 'is_shared',
             'created_at', 'updated_at',
         ]
+
+    # Pre-annotated by the list view; other callers (search results) simply get empty values
+    def get_summary_preview(self, obj):
+        return getattr(obj, '_summary_preview', '') or ''
+
+    def get_is_shared(self, obj):
+        return bool(getattr(obj, '_is_shared', False))
 
     def get_is_starred(self, obj):
         request = self.context.get('request')
