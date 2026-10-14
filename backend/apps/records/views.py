@@ -128,7 +128,11 @@ class RecordDetailView(generics.RetrieveUpdateDestroyAPIView):
         return RecordDetailSerializer
 
     def get_queryset(self):
-        return Record.objects.select_related('record_series', 'custodian', 'author', 'record_series').prefetch_related('versions', 'related_records', 'permissions')
+        return (
+            Record.objects.filter(destroyed_at__isnull=True)
+            .select_related('record_series', 'custodian', 'author', 'record_series')
+            .prefetch_related('versions', 'related_records', 'permissions')
+        )
 
     def get_object(self):
         record = super().get_object()
@@ -156,10 +160,13 @@ class RecordDetailView(generics.RetrieveUpdateDestroyAPIView):
             return Response({'detail': 'Cannot delete a record under legal hold.'}, status=403)
         if record.is_vital:
             return Response({'detail': 'Cannot delete a vital record.'}, status=403)
-        record.destroyed_at = timezone.now()
-        record.save(update_fields=['destroyed_at'])
+        # Into the Recycle bin, not erased: destroyed_at hides it from every list and search,
+        # deleted_at / deleted_by let it be found and restored
+        record.destroyed_at = record.deleted_at = timezone.now()
+        record.deleted_by = request.user
+        record.save(update_fields=['destroyed_at', 'deleted_at', 'deleted_by'])
         from apps.audit.utils import log_action
-        log_action(request, 'delete', record)
+        log_action(request, 'delete', record, extra={'recycle_bin': True})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

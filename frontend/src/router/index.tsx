@@ -22,6 +22,7 @@ import WorkflowDetail from '@/pages/workflows/WorkflowDetail'
 import WorkflowTemplates from '@/pages/workflows/WorkflowTemplates'
 import SearchResults from '@/pages/search/SearchResults'
 import AskArchive from '@/pages/ai/AskArchive'
+import RecycleBin from '@/pages/documents/RecycleBin'
 import AiReviewQueue from '@/pages/ai/AiReviewQueue'
 import LegalHolds from '@/pages/compliance/LegalHolds'
 import DestructionScheduling from '@/pages/compliance/DestructionScheduling'
@@ -77,6 +78,7 @@ export default function AppRouter() {
           <Route element={<RequireRole roles={OFFICER} />}>
             <Route path="/upload" element={<RecordUpload />} />
             <Route path="/ai-review" element={<AiReviewQueue />} />
+            <Route path="/bin" element={<RecycleBin />} />
             <Route path="/workflows" element={<WorkflowList />} />
             <Route path="/workflows/templates" element={<WorkflowTemplates />} />
             <Route path="/compliance/legal-holds" element={<LegalHolds />} />

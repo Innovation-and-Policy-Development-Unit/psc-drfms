@@ -13,6 +13,21 @@ export interface RecordSeriesItem {
 
 let seriesCache: RecordSeriesItem[] | null = null
 
+export interface BinItem {
+  id: string
+  referenceNumber: string
+  title: string
+  classificationLevel: string
+  documentType: string
+  recordSeriesName: string
+  fileName: string
+  fileSize: number
+  deletedAt: string
+  deletedByName: string
+}
+
+export interface RecordsDeletedDetail { ids: string[]; title?: string }
+
 export const driveApi = {
   storage: () => client.get<StorageUsage>('/records/storage/'),
   pins: () => client.get<PinnedView[]>('/records/pins/'),
@@ -35,6 +50,9 @@ export const driveApi = {
     client.post<{ id: number; code: string; name: string; parent: number | null; retentionYears: number }>('/records/folders/', {
       name, ...(parent ? { parent } : {}), ...(retentionYears !== undefined ? { retentionYears } : {}),
     }),
+  bin: (q?: string) => client.get<{ count: number; results: BinItem[] }>('/records/bin/', { params: q ? { q } : {} }),
+  restoreFromBin: (recordIds: string[]) =>
+    client.post<{ restored: string[]; failed: Array<{ id: string; title: string; detail: string }>; count: number }>('/records/bin/restore/', { recordIds }),
   moveRecords: (recordIds: string[], recordSeries: string | number | null) =>
     client.post<{ detail: string; count: number }>('/records/bulk/', { recordIds, recordSeries }),
   thumbnail: (recordId: string) =>
@@ -46,3 +64,8 @@ export const PINS_CHANGED_EVENT = 'drfms:pins-changed'
 
 /** A folder (record series) was created, so lists of series should reload. */
 export const SERIES_CHANGED_EVENT = "drfms:series-changed"
+
+/** Announce that records were moved to the Recycle bin (shows the Undo message). */
+export const RECORDS_DELETED_EVENT = 'drfms:records-deleted'
+/** Records were restored or otherwise changed elsewhere: lists should reload. */
+export const RECORDS_CHANGED_EVENT = 'drfms:records-changed'

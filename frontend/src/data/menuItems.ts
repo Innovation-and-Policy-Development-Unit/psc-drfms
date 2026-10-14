@@ -56,6 +56,7 @@ const menuItems: MenuGroup[] = [
       { label: 'Tags', icon: Tag, path: '/tags' },
       { label: 'Search', icon: Search, path: '/search' },
       { label: 'Ask AI', icon: Sparkles, path: '/ask' },
+      { label: 'Recycle bin', icon: Trash2, path: '/bin', roles: OFFICER },
     ],
   },
   {

@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, drive_views
+from . import views, drive_views, bin_views
 
 urlpatterns = [
     path('', views.RecordListCreateView.as_view(), name='record-list'),
@@ -24,5 +24,7 @@ urlpatterns = [
     path('pins/<int:pk>/', drive_views.PinDeleteView.as_view(), name='record-pin-delete'),
     path('new-document/', drive_views.NewDocumentView.as_view(), name='record-new-document'),
     path('folders/', drive_views.NewFolderView.as_view(), name='record-new-folder'),
+    path('bin/', bin_views.RecycleBinView.as_view(), name='record-bin'),
+    path('bin/restore/', bin_views.RestoreFromBinView.as_view(), name='record-bin-restore'),
     path('<uuid:pk>/thumbnail/', drive_views.RecordThumbnailView.as_view(), name='record-thumbnail'),
 ]

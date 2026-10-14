@@ -9,6 +9,7 @@ const ACTION_LABELS = {
   approved: 'Approved',
   rejected: 'Rejected',
   revision_required: 'Revision required',
+  restore: 'Restored from Recycle bin',
 }
 
 export default function ActivityPanel({ recordId }) {

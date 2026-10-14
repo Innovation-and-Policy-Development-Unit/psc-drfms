@@ -26,6 +26,7 @@ const breadcrumbMap = {
   '/recent': ['Documents', 'Recent'],
   '/search': ['Search'],
   '/ask': ['Ask AI'],
+  '/bin': ['Documents', 'Recycle bin'],
   '/ai-review': ['Work', 'AI review'],
   '/inbox': ['Inbox'],
   '/tags': ['Workspace', 'Tags'],

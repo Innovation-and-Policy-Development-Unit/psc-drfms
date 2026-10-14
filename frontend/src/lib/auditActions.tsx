@@ -20,6 +20,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   logout: 'Logout',
   login_failed: 'Login failed',
   export: 'Export',
+  restore: 'Restored',
 }
 
 /** Five registry tones — not a 21-color dashboard map. */
@@ -43,6 +44,7 @@ const AUDIT_ACTION_TONE: Record<string, 'neutral' | 'success' | 'warning' | 'dan
   logout: 'neutral',
   login_failed: 'danger',
   export: 'info',
+  restore: 'success',
 }
 
 export function AuditActionBadge({ action }: { action: string }) {

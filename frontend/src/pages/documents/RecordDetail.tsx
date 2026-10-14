@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { isAxiosError } from 'axios'
 import { useAuth } from '@/context/AuthContext'
 import { recordsApi, onlyofficeApi } from '@/api'
+import { RECORDS_DELETED_EVENT } from '@/api/drive'
 import type { RecordDetail as RecordDetailType } from '@/types/api'
 import { getFileTypeInfo, formatFileSize, getOfficeOpenUrl } from '@/utils/fileType'
 import OnlyOfficeEditor from '@/components/record/OnlyOfficeEditor'
@@ -65,6 +66,7 @@ export default function RecordDetail() {
     setDeleteError('')
     try {
       await recordsApi.deleteRecord(id)
+      window.dispatchEvent(new CustomEvent(RECORDS_DELETED_EVENT, { detail: { ids: [id], title: record?.title } }))
       navigate('/browse')
     } catch (err) {
       const detail = isAxiosError(err) ? err.response?.data?.detail : undefined
@@ -204,7 +206,8 @@ export default function RecordDetail() {
             )}
             <ConfirmPopover
               anchor={confirmDelete}
-              message={<>Delete “{record.title}”? This archives the record and removes it from all views.</>}
+              message={<>Move “{record.title}” to the Recycle bin? It is hidden until someone restores it; nothing is erased.</>}
+              confirmLabel="Move to bin"
               onConfirm={handleDelete}
               onCancel={() => setConfirmDelete(null)}
             />

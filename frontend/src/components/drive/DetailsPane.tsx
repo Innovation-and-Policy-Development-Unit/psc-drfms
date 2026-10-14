@@ -16,7 +16,7 @@ const ACTION_LABELS: Record<string, string> = {
   view: 'Viewed', create: 'Created', update: 'Edited', delete: 'Deleted', download: 'Downloaded',
   upload_version: 'Uploaded a new version', approve: 'Approved', reject: 'Rejected', share: 'Shared',
   share_access: 'Opened via a shared link', sign: 'Digitally signed', legal_hold: 'Legal hold applied',
-  legal_hold_lift: 'Legal hold lifted', custody_transfer: 'Custody transferred', export: 'Exported',
+  legal_hold_lift: 'Legal hold lifted', custody_transfer: 'Custody transferred', export: 'Exported', restore: 'Restored from Recycle bin',
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {

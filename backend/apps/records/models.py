@@ -78,6 +78,10 @@ class Record(models.Model):
     retention_date = models.DateField(null=True, blank=True)
     scheduled_destruction_date = models.DateField(null=True, blank=True)
     destroyed_at = models.DateTimeField(null=True, blank=True)
+    # Recycle bin: set together with destroyed_at (which hides the record everywhere). Restoring clears all three.
+    # A deleted record is only erased through the destruction-certificate process, never from the bin.
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='deleted_records')
     destruction_certificate = models.ForeignKey('compliance.DestructionCertificate', null=True, blank=True, on_delete=models.SET_NULL, related_name='destroyed_records')
 
     # Full-text search

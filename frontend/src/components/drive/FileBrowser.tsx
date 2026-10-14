@@ -28,6 +28,7 @@ import {
   recordDetailPath,
 } from '@/lib/driveRecordActions'
 import * as recordsApi from '@/api/records'
+import { RECORDS_CHANGED_EVENT, RECORDS_DELETED_EVENT } from '@/api/drive'
 import { useTransfers } from '@/context/TransferContext'
 import type { BreadcrumbItem, RecordListItem } from '@/types/api'
 
@@ -115,6 +116,12 @@ function FileBrowserInner({
     }
   }, [count, loading, selected.size, setStatusMessage])
 
+  // An Undo or restore elsewhere changes what this list should show
+  useEffect(() => {
+    window.addEventListener(RECORDS_CHANGED_EVENT, refresh)
+    return () => window.removeEventListener(RECORDS_CHANGED_EVENT, refresh)
+  }, [refresh])
+
   // Esc clears the selection, like a file manager
   useEffect(() => {
     if (selected.size === 0) return
@@ -196,9 +203,11 @@ function FileBrowserInner({
     if (!confirmDelete) return
     setDeleteError('')
     const failures: string[] = []
+    const deleted: RecordListItem[] = []
     for (const record of confirmDelete.records) {
       try {
         await recordsApi.deleteRecord(record.id)
+        deleted.push(record)
       } catch (err) {
         const detail = isAxiosError(err) ? err.response?.data?.detail : undefined
         failures.push(`${record.title}: ${detail ?? 'deletion failed'}`)
@@ -207,6 +216,9 @@ function FileBrowserInner({
     setConfirmDelete(null)
     setSelected(new Set())
     if (failures.length > 0) setDeleteError(failures.join(' — '))
+    if (deleted.length > 0) {
+      window.dispatchEvent(new CustomEvent(RECORDS_DELETED_EVENT, { detail: { ids: deleted.map((r) => r.id), title: deleted[0].title } }))
+    }
     refresh()
   }
 
@@ -358,10 +370,11 @@ function FileBrowserInner({
         anchor={confirmDelete?.anchor ?? null}
         message={confirmDelete && (
           <>
-            Delete {confirmDelete.records.length === 1 ? `“${confirmDelete.records[0].title}”` : `${confirmDelete.records.length} records`}?
-            This archives the record and removes it from all views.
+            Move {confirmDelete.records.length === 1 ? `“${confirmDelete.records[0].title}”` : `${confirmDelete.records.length} records`} to the Recycle bin?
+            {confirmDelete.records.length === 1 ? 'It is' : 'They are'} hidden until someone restores {confirmDelete.records.length === 1 ? 'it' : 'them'}; nothing is erased.
           </>
         )}
+        confirmLabel="Move to bin"
         onConfirm={performDelete}
         onCancel={() => setConfirmDelete(null)}
       />

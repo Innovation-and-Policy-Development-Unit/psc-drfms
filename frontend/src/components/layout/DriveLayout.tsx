@@ -7,6 +7,7 @@ import AppearanceSync from './AppearanceSync'
 import DriveDropZone from '../drive/DriveDropZone'
 import { DriveStatusBar } from '../drive/DriveStatusBar'
 import { TransferPanel } from '../drive/TransferPanel'
+import { UndoHost } from '../drive/UndoHost'
 import MegaUploadDialog from '../drive/MegaUploadDialog'
 import { SettingsPanel } from '@/components/layout/SettingsPanel'
 import { DriveUIProvider, useDriveUI } from '@/context/DriveUIContext'
@@ -46,6 +47,7 @@ function AppShellInner() {
         onClose={closeUploadDialog}
         initialFiles={pendingDialogFiles}
       />
+      <UndoHost />
       <SettingsPanel />
       <CommandPalette />
       <AppearanceSync />

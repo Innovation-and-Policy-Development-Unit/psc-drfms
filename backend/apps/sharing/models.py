@@ -35,7 +35,8 @@ class SharedLink(models.Model):
 
     @property
     def is_accessible(self):
-        return self.is_active and not self.is_expired
+        # A record in the Recycle bin is unreachable by link until it is restored
+        return self.is_active and not self.is_expired and not self.record.destroyed_at
 
 
 class SharedLinkAccess(models.Model):

@@ -7,7 +7,7 @@ the enforcement point.
 """
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from apps.accounts.models import UserRole
 from .models import ClassificationLevel, Record
@@ -112,8 +112,14 @@ _CHECKS = {
 }
 
 
-def ensure_record_access(user, record, action='view'):
-    """Raise PermissionDenied unless `user` may perform `action` on `record`."""
+def ensure_record_access(user, record, action='view', allow_deleted=False):
+    """Raise PermissionDenied unless `user` may perform `action` on `record`.
+
+    A record in the Recycle bin is treated as not found everywhere except the bin itself
+    (``allow_deleted=True``), so deleting really does take it out of reach until restored.
+    """
+    if record.destroyed_at and not allow_deleted:
+        raise NotFound('This record is in the Recycle bin.')
     if not _CHECKS[action](user, record):
         raise PermissionDenied(
             f'You do not have permission to {action} this record '

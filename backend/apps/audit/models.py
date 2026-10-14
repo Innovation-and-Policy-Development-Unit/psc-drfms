@@ -22,6 +22,7 @@ class AuditAction(models.TextChoices):
     LOGOUT = 'logout', 'Logout'
     LOGIN_FAILED = 'login_failed', 'Login Failed'
     EXPORT = 'export', 'Export'
+    RESTORE = 'restore', 'Restored from Recycle bin'
 
 
 class AuditLog(models.Model):
