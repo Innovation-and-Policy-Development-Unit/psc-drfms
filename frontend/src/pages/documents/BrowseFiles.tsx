@@ -3,25 +3,24 @@ import { useSearchParams } from 'react-router-dom'
 import FileBrowser from '@/components/drive/FileBrowser'
 import BrowseOverview from '@/components/drive/BrowseOverview'
 import { driveApi, type RecordSeriesItem } from '@/api/drive'
+import { SERIES_CHANGED_EVENT } from '@/api/drive'
 import type { BreadcrumbItem } from '@/types/api'
-
-let seriesCache: RecordSeriesItem[] | null = null
 
 const seriesLink = (id: number) => `/browse?record_series=${id}`
 
 export default function BrowseFiles() {
   const [params] = useSearchParams()
   const seriesId = params.get('record_series')
-  const [series, setSeries] = useState<RecordSeriesItem[]>(seriesCache ?? [])
+  const [series, setSeries] = useState<RecordSeriesItem[]>([])
 
   useEffect(() => {
-    if (seriesCache) return
-    driveApi.series()
-      .then(({ data }) => {
-        seriesCache = (Array.isArray(data) ? data : data.results).filter((s) => s.isActive)
-        setSeries(seriesCache)
-      })
+    const load = (force: boolean) => driveApi.activeSeries(force)
+      .then(setSeries)
       .catch(() => { /* breadcrumbs simply stay at "All files" */ })
+    load(false)
+    const onChanged = () => load(true)
+    window.addEventListener(SERIES_CHANGED_EVENT, onChanged)
+    return () => window.removeEventListener(SERIES_CHANGED_EVENT, onChanged)
   }, [])
 
   // All files > (parent series >) current series; each level can jump to its siblings

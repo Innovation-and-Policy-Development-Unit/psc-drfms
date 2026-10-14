@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, FileSpreadsheet, FileText, FolderUp, Plus, Presentation, Upload } from 'lucide-react'
+import { ChevronDown, FileSpreadsheet, FileText, FolderPlus, FolderUp, Plus, Presentation, Upload } from 'lucide-react'
 import clsx from 'clsx'
 import { useDriveUI } from '@/context/DriveUIContext'
 import type { NewDocumentKind } from '@/api/drive'
 import NewDocumentDialog from './NewDocumentDialog'
+import NewFolderDialog from './NewFolderDialog'
 
 interface Props {
   /** Series to file a new document under; defaults to the series currently being browsed. */
@@ -26,6 +27,7 @@ export default function NewMenu({ recordSeries, compact = false, className }: Pr
   const series = recordSeries ?? params.get('record_series')
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState<NewDocumentKind | null>(null)
+  const [creatingFolder, setCreatingFolder] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
 
@@ -62,6 +64,11 @@ export default function NewMenu({ recordSeries, compact = false, className }: Pr
       {open && (
         <div role="menu" className="absolute end-0 top-full z-50 mt-2 w-64 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] py-1 text-sm shadow-lg">
           <button type="button" role="menuitem" className="flex w-full items-center gap-2.5 px-3 py-2 text-start hover:bg-[var(--surface-sunken)]"
+            onClick={() => { setOpen(false); setCreatingFolder(true) }}>
+            <FolderPlus size={16} className="shrink-0 text-amber-500" /> Folder
+          </button>
+          <div className="my-1 border-t border-[var(--border-default)]" />
+          <button type="button" role="menuitem" className="flex w-full items-center gap-2.5 px-3 py-2 text-start hover:bg-[var(--surface-sunken)]"
             onClick={() => { setOpen(false); openUploadDialog() }}>
             <Upload size={16} className="shrink-0 text-muted" /> Upload files
           </button>
@@ -90,6 +97,7 @@ export default function NewMenu({ recordSeries, compact = false, className }: Pr
         tabIndex={-1}
       />
 
+      {creatingFolder && <NewFolderDialog parent={series} onClose={() => setCreatingFolder(false)} />}
       {creating && <NewDocumentDialog kind={creating} recordSeries={series} onClose={() => setCreating(null)} />}
     </div>
   )

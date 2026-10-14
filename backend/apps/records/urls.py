@@ -23,5 +23,6 @@ urlpatterns = [
     path('pins/', drive_views.PinListCreateView.as_view(), name='record-pins'),
     path('pins/<int:pk>/', drive_views.PinDeleteView.as_view(), name='record-pin-delete'),
     path('new-document/', drive_views.NewDocumentView.as_view(), name='record-new-document'),
+    path('folders/', drive_views.NewFolderView.as_view(), name='record-new-folder'),
     path('<uuid:pk>/thumbnail/', drive_views.RecordThumbnailView.as_view(), name='record-thumbnail'),
 ]

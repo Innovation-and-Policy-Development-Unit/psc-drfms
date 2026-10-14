@@ -214,3 +214,46 @@ class NewDocumentTests(DriveTestCase):
         series = RecordSeries.objects.create(code='FIN', name='Finance', retention_years=7)
         res = self.client.post('/api/records/new-document/', {'kind': 'word', 'title': 'Budget', 'record_series': series.pk}, format='json')
         self.assertEqual(Record.objects.get(pk=res.json()['id']).record_series, series)
+
+
+class NewFolderTests(DriveTestCase):
+    def setUp(self):
+        super().setUp()
+        self.admin = make_user('admin@t.gov.vu', UserRole.ADMINISTRATOR)
+        self.parent = RecordSeries.objects.create(code='HR', name='Human resources', retention_years=10)
+
+    def test_officer_creates_a_folder_inside_a_series_and_inherits_retention(self):
+        res = self.client.post('/api/records/folders/', {'name': 'Leave files', 'parent': self.parent.pk, 'retention_years': 1}, format='json')
+        self.assertEqual(res.status_code, 201)
+        series = RecordSeries.objects.get(pk=res.json()['id'])
+        self.assertEqual((series.parent, series.name, series.code), (self.parent, 'Leave files', 'HR-LF'))
+        self.assertEqual(series.retention_years, 10)  # an officer cannot shorten retention
+
+    def test_top_level_folders_are_administrator_only(self):
+        res = self.client.post('/api/records/folders/', {'name': 'Finance'}, format='json')
+        self.assertEqual(res.status_code, 403)
+        self.client.force_authenticate(self.admin)
+        res = self.client.post('/api/records/folders/', {'name': 'Finance', 'retention_years': 15}, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(RecordSeries.objects.get(pk=res.json()['id']).retention_years, 15)
+
+    def test_validation_and_uniqueness(self):
+        post = lambda **kw: self.client.post('/api/records/folders/', {'parent': self.parent.pk, **kw}, format='json')
+        self.assertEqual(post(name='  ').status_code, 400)
+        self.assertEqual(post(name='Leave files').status_code, 201)
+        self.assertEqual(post(name='leave FILES').status_code, 400)  # same name in the same place
+        second = post(name='Large fines')  # same initials -> distinct code
+        self.assertEqual(second.json()['code'], 'HR-LF-2')
+        self.client.force_authenticate(self.admin)
+        bad = self.client.post('/api/records/folders/', {'name': 'X', 'retention_years': 'abc'}, format='json')
+        self.assertEqual(bad.status_code, 400)
+
+    def test_read_only_users_cannot_and_depth_is_limited(self):
+        self.client.force_authenticate(self.reader)
+        self.assertEqual(self.client.post('/api/records/folders/', {'name': 'N', 'parent': self.parent.pk}, format='json').status_code, 403)
+        self.client.force_authenticate(self.officer)
+        node = self.parent
+        for i in range(5):
+            node = RecordSeries.objects.create(code=f'D{i}', name=f'Level {i}', parent=node)
+        res = self.client.post('/api/records/folders/', {'name': 'Too deep', 'parent': node.pk}, format='json')
+        self.assertEqual(res.status_code, 400)

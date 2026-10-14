@@ -17,9 +17,14 @@ from apps.accounts.permissions import IsRecordsOfficerOrAbove
 from . import thumbnails
 from .authorization import ensure_record_access, viewable_records
 from .blank_docs import KINDS, build_blank
+from apps.accounts.models import UserRole
+from apps.audit.models import AuditAction
+from apps.audit.utils import log_action
+
 from .models import PinnedView, Record, RecordSeries, RecordVersion
 
 MAX_PINS = 25
+MAX_FOLDER_DEPTH = 6
 STORAGE_CACHE_SECONDS = 60
 
 
@@ -98,6 +103,64 @@ class PinDeleteView(APIView):
     def delete(self, request, pk):
         get_object_or_404(PinnedView, pk=pk, user=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _folder_code(parent, name):
+    """Unique series code: parent code + initials of the name (e.g. HR-01 + 'Leave files' -> HR-01-LF)."""
+    initials = ''.join(w[0] for w in re.findall(r'[A-Za-z0-9]+', name))[:6].upper() or 'F'
+    base = f'{parent.code}-{initials}' if parent else initials
+    base = base[:26]
+    code, n = base, 1
+    while RecordSeries.objects.filter(code=code).exists():
+        n += 1
+        code = f'{base}-{n}'
+    return code
+
+
+class NewFolderView(APIView):
+    """Create a folder (a record series).
+
+    Records officers may add a folder inside an existing series; it inherits that series' retention
+    period, so nobody can shorten retention by creating folders. Top-level folders, and choosing a
+    retention period, are for administrators because the series tree carries the retention rules.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsRecordsOfficerOrAbove]
+
+    def post(self, request):
+        name = ' '.join(str(request.data.get('name') or '').split())[:255]
+        if not name:
+            return Response({'detail': 'Give the folder a name.'}, status=status.HTTP_400_BAD_REQUEST)
+        is_admin = request.user.role == UserRole.ADMINISTRATOR
+
+        parent = None
+        if request.data.get('parent'):
+            parent = get_object_or_404(RecordSeries, pk=request.data['parent'], is_active=True)
+            depth, node = 1, parent
+            while node.parent_id:
+                node, depth = node.parent, depth + 1
+            if depth >= MAX_FOLDER_DEPTH:
+                return Response({'detail': f'Folders can be nested at most {MAX_FOLDER_DEPTH} levels deep.'}, status=status.HTTP_400_BAD_REQUEST)
+        elif not is_admin:
+            return Response({'detail': 'Only an administrator can create a top-level folder. Create it inside an existing one.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if RecordSeries.objects.filter(parent=parent, name__iexact=name, is_active=True).exists():
+            return Response({'detail': 'A folder with that name already exists here.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        years = parent.retention_years if parent else 7
+        if is_admin and request.data.get('retention_years') not in (None, ''):
+            try:
+                years = int(request.data['retention_years'])
+            except (TypeError, ValueError):
+                return Response({'detail': 'Retention must be a whole number of years.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not 0 <= years <= 150:
+                return Response({'detail': 'Retention must be between 0 and 150 years.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        series = RecordSeries.objects.create(code=_folder_code(parent, name), name=name, parent=parent, retention_years=years)
+        log_action(request, AuditAction.CREATE, extra={'folder': series.code, 'name': series.name, 'parent': parent.code if parent else None})
+        return Response(
+            {'id': series.pk, 'code': series.code, 'name': series.name, 'parent': series.parent_id, 'retention_years': series.retention_years},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class NewDocumentView(APIView):
