@@ -36,13 +36,27 @@ RELS_DEFAULTS = [
 CT = 'application/vnd.openxmlformats-officedocument'
 
 
-def _docx():
+def _escape(text):
+    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
+
+def _paragraph_xml(p):
+    """One paragraph; headings use direct formatting because the minimal package has no style sheet."""
+    text, heading = _escape(p['text']), p.get('heading')
+    if not text:
+        return '<w:p/>'
+    props = '<w:rPr><w:b/><w:sz w:val="32"/></w:rPr>' if heading == 1 else '<w:rPr><w:b/><w:sz w:val="26"/></w:rPr>' if heading else ''
+    return f'<w:p><w:r>{props}<w:t xml:space="preserve">{text}</w:t></w:r></w:p>'
+
+
+def _docx(paragraphs=None):
+    body = ''.join(_paragraph_xml(p) for p in paragraphs) if paragraphs else '<w:p/>'
     return {
         '[Content_Types].xml': _content_types(RELS_DEFAULTS, [('/word/document.xml', f'{CT}.wordprocessingml.document.main+xml')]),
         '_rels/.rels': _rels(('rId1', 'officeDocument', 'word/document.xml')),
         'word/document.xml': (
             f'{XML}<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-            '<w:body><w:p/><w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
+            f'<w:body>{body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
             '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/>'
             '</w:sectPr></w:body></w:document>'
         ),
@@ -133,9 +147,12 @@ def _pptx():
 _BUILDERS = {'word': _docx, 'excel': _xlsx, 'powerpoint': _pptx}
 
 
-def build_blank(kind):
-    """(bytes, extension, mime_type) of an empty document of ``kind``; KeyError if unknown."""
-    parts = _BUILDERS[kind]()
+def build_blank(kind, paragraphs=None):
+    """(bytes, extension, mime_type) of an empty document of ``kind``; KeyError if unknown.
+
+    ``paragraphs`` ([{'text', 'heading': 1|2|None}]) pre-fills a Word document, for starter templates.
+    """
+    parts = _docx(paragraphs) if kind == 'word' and paragraphs else _BUILDERS[kind]()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
         for name, content in parts.items():

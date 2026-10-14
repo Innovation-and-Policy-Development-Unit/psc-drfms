@@ -89,6 +89,8 @@ class Record(models.Model):
 
     # Tags
     tags = models.JSONField(default=list, blank=True)
+    # Extra fields defined per document type (see MetadataProfile), e.g. {'party': 'Acme Ltd', 'amount': '1500000'}
+    custom_fields = models.JSONField(default=dict, blank=True)
 
     # Related records
     related_records = models.ManyToManyField('self', blank=True, symmetrical=True)
@@ -207,6 +209,8 @@ class PinnedView(models.Model):
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='pinned_views')
     label = models.CharField(max_length=80)
     target = models.CharField(max_length=300)
+    # '' = private; 'department' = everyone in the owner's department; 'all' = everyone (administrators only)
+    shared_with = models.CharField(max_length=12, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -215,6 +219,130 @@ class PinnedView(models.Model):
 
     def __str__(self):
         return f'{self.user_id}: {self.label}'
+
+
+class RecordRelation(models.Model):
+    """A typed link between two records: a reply, a superseding version, a reference, or plain 'related'."""
+    RELATED = 'related'
+    REPLIES_TO = 'replies_to'
+    SUPERSEDES = 'supersedes'
+    REFERS_TO = 'refers_to'
+    TYPE_CHOICES = [
+        (RELATED, 'Related to'),
+        (REPLIES_TO, 'Replies to'),
+        (SUPERSEDES, 'Supersedes'),
+        (REFERS_TO, 'Refers to'),
+    ]
+
+    from_record = models.ForeignKey('Record', on_delete=models.CASCADE, related_name='relations_out')
+    to_record = models.ForeignKey('Record', on_delete=models.CASCADE, related_name='relations_in')
+    relation_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=RELATED)
+    note = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [['from_record', 'to_record', 'relation_type']]
+        constraints = [models.CheckConstraint(check=~models.Q(from_record=models.F('to_record')), name='relation_not_self')]
+
+    def __str__(self):
+        return f'{self.from_record_id} {self.relation_type} {self.to_record_id}'
+
+
+class RecordAttachment(models.Model):
+    """An extra file on a record that is not a version of the main file: annexes, enclosures, a PDF copy."""
+    ANNEX = 'annex'
+    PDF_COPY = 'pdf_copy'
+    ROLE_CHOICES = [(ANNEX, 'Annex or enclosure'), (PDF_COPY, 'PDF copy')]
+
+    record = models.ForeignKey('Record', on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='records/attachments/')
+    file_name = models.CharField(max_length=500)
+    file_size = models.PositiveBigIntegerField()
+    mime_type = models.CharField(max_length=100)
+    content_hash = models.CharField(max_length=64, db_index=True)
+    role = models.CharField(max_length=12, choices=ROLE_CHOICES, default=ANNEX)
+    description = models.CharField(max_length=300, blank=True)
+    uploaded_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Files are never erased: removing one hides it, and it can be restored
+    removed_at = models.DateTimeField(null=True, blank=True)
+    removed_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.file_name} on {self.record_id}'
+
+
+class DocumentTemplate(models.Model):
+    """A starting point for a new document: a Word, Excel or PowerPoint file plus the metadata to pre-fill."""
+    KIND_CHOICES = [('word', 'Word'), ('excel', 'Excel'), ('powerpoint', 'PowerPoint')]
+
+    name = models.CharField(max_length=150, unique=True)
+    description = models.CharField(max_length=300, blank=True)
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default='word')
+    file = models.FileField(upload_to='templates/')
+    file_name = models.CharField(max_length=300)
+    mime_type = models.CharField(max_length=100)
+    document_type = models.CharField(max_length=30, choices=DocumentType.choices, default=DocumentType.OTHER)
+    classification_level = models.CharField(max_length=20, choices=ClassificationLevel.choices, default=ClassificationLevel.INTERNAL)
+    record_series = models.ForeignKey(RecordSeries, null=True, blank=True, on_delete=models.SET_NULL, related_name='templates')
+    # "Minutes - {date}" -> "Minutes - 14 Oct 2026"; also {year}
+    title_pattern = models.CharField(max_length=200, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class PermissionRule(models.Model):
+    """Automatic access: everyone in a department (or one user) gets the chosen rights on every record that matches.
+
+    Evaluated live, so a record that is filed into a matching series is covered at once and one that moves out
+    stops being covered. A rule never reaches above ``max_classification``.
+    """
+    name = models.CharField(max_length=150)
+    description = models.CharField(max_length=300, blank=True)
+    department = models.ForeignKey('accounts.Department', null=True, blank=True, on_delete=models.CASCADE, related_name='permission_rules')
+    user = models.ForeignKey('accounts.User', null=True, blank=True, on_delete=models.CASCADE, related_name='permission_rules')
+    record_series = models.ForeignKey(RecordSeries, null=True, blank=True, on_delete=models.CASCADE, related_name='permission_rules')
+    include_subseries = models.BooleanField(default=True)
+    document_type = models.CharField(max_length=30, blank=True)
+    max_classification = models.CharField(max_length=20, choices=ClassificationLevel.choices, default=ClassificationLevel.CONFIDENTIAL)
+    can_view = models.BooleanField(default=True)
+    can_edit = models.BooleanField(default=False)
+    can_download = models.BooleanField(default=True)
+    can_share = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class MetadataProfile(models.Model):
+    """What a record of this document type must have filled in, and which extra fields it carries."""
+    document_type = models.CharField(max_length=30, unique=True)
+    # Names of core fields that must be filled, e.g. ['originating_ministry', 'document_date']
+    required_fields = models.JSONField(default=list, blank=True)
+    # [{'key': 'amount', 'label': 'Contract value', 'kind': 'number', 'required': True}, ...]
+    custom_fields = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.document_type
 
 
 class RecordStar(models.Model):

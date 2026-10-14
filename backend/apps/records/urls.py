@@ -1,5 +1,7 @@
 from django.urls import path
-from . import views, drive_views, bin_views
+from . import (
+    attachment_views, bin_views, drive_views, duplicate_views, metadata, relation_views, rule_views, template_views, views,
+)
 
 urlpatterns = [
     path('', views.RecordListCreateView.as_view(), name='record-list'),
@@ -25,6 +27,20 @@ urlpatterns = [
     path('new-document/', drive_views.NewDocumentView.as_view(), name='record-new-document'),
     path('folders/', drive_views.NewFolderView.as_view(), name='record-new-folder'),
     path('bin/', bin_views.RecycleBinView.as_view(), name='record-bin'),
+    path('check-duplicates/', duplicate_views.CheckDuplicatesView.as_view(), name='record-check-duplicates'),
+    path('metadata-profiles/', metadata.MetadataProfilesView.as_view(), name='metadata-profiles'),
+    path('metadata-profiles/<str:document_type>/', metadata.MetadataProfileDetailView.as_view(), name='metadata-profile'),
+    path('templates/', template_views.TemplateListCreateView.as_view(), name='templates'),
+    path('templates/starter/', template_views.TemplateStarterView.as_view(), name='templates-starter'),
+    path('templates/<int:pk>/', template_views.TemplateDetailView.as_view(), name='template-detail'),
+    path('templates/<int:pk>/use/', template_views.TemplateUseView.as_view(), name='template-use'),
+    path('permission-rules/', rule_views.RuleListCreateView.as_view(), name='permission-rules'),
+    path('permission-rules/<int:pk>/', rule_views.RuleDetailView.as_view(), name='permission-rule'),
+    path('<uuid:pk>/relations/', relation_views.RecordRelationsView.as_view(), name='record-relations'),
+    path('<uuid:pk>/relations/<int:rel_id>/', relation_views.RecordRelationDeleteView.as_view(), name='record-relation-delete'),
+    path('<uuid:pk>/attachments/', attachment_views.AttachmentListCreateView.as_view(), name='record-attachments'),
+    path('<uuid:pk>/attachments/<int:attachment_id>/download/', attachment_views.AttachmentDownloadView.as_view(), name='record-attachment-download'),
+    path('<uuid:pk>/attachments/<int:attachment_id>/<str:action>/', attachment_views.AttachmentRemoveRestoreView.as_view(), name='record-attachment-action'),
     path('bin/restore/', bin_views.RestoreFromBinView.as_view(), name='record-bin-restore'),
     path('<uuid:pk>/thumbnail/', drive_views.RecordThumbnailView.as_view(), name='record-thumbnail'),
 ]

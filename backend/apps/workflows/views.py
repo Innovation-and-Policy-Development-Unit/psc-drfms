@@ -31,6 +31,16 @@ class WorkflowInstanceListView(generics.ListCreateAPIView):
             'record', 'template', 'initiated_by',
         ).prefetch_related('actions__assigned_to')
 
+    def create(self, request, *args, **kwargs):
+        from apps.records.metadata import missing_required
+        from apps.records.models import Record
+        record = Record.objects.filter(pk=request.data.get('record')).first()
+        missing = missing_required(record) if record else []
+        if missing:
+            names = ', '.join(m['label'] for m in missing)
+            return Response({'detail': f'Fill in the required fields before starting a workflow: {names}.', 'missing': missing}, status=400)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         instance = serializer.save(initiated_by=self.request.user, status='in_progress')
         # Create first action based on template

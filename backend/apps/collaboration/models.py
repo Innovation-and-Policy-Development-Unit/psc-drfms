@@ -62,3 +62,26 @@ class ReviewRoundReviewer(models.Model):
 
     class Meta:
         unique_together = [['review_round', 'reviewer']]
+
+
+class Assignment(models.Model):
+    """A request to a colleague about a record: "please review this by Friday". Lighter than a workflow."""
+    OPEN, DONE, CANCELLED = 'open', 'done', 'cancelled'
+    STATUS_CHOICES = [(OPEN, 'Open'), (DONE, 'Done'), (CANCELLED, 'Cancelled')]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record = models.ForeignKey('records.Record', on_delete=models.CASCADE, related_name='assignments')
+    assigned_to = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='assignments')
+    assigned_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='assignments_given')
+    instruction = models.CharField(max_length=500)
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_note = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ['due_date', 'created_at']
+
+    def __str__(self):
+        return f'{self.instruction[:40]} -> {self.assigned_to_id}'

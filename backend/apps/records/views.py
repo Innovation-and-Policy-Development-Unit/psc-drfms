@@ -44,7 +44,7 @@ class RecordListCreateView(generics.ListCreateAPIView):
     search_fields = ['title', 'reference_number', 'description', 'originating_ministry']
     ordering_fields = [
         'created_at', 'updated_at', 'document_date', 'title', 'reference_number', 'document_type',
-        'retention_date', 'file_size', 'classification_rank',
+        'retention_date', 'file_size', 'classification_rank', 'record_series__name', 'originating_ministry',
     ]
     ordering = ['-created_at']
 

@@ -5,7 +5,7 @@ import re
 from django.conf import settings
 from django.core.cache import cache
 from django.core.files.base import ContentFile
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
@@ -21,7 +21,7 @@ from apps.accounts.models import UserRole
 from apps.audit.models import AuditAction
 from apps.audit.utils import log_action
 
-from .models import PinnedView, Record, RecordSeries, RecordVersion
+from .models import PinnedView, Record, RecordAttachment, RecordSeries, RecordVersion
 
 MAX_PINS = 25
 MAX_FOLDER_DEPTH = 6
@@ -54,6 +54,7 @@ class StorageUsageView(APIView):
         if data is None:
             visible = viewable_records(request.user).values('pk')
             total = RecordVersion.objects.filter(record_id__in=visible).aggregate(n=Sum('file_size'))['n'] or 0
+            total += RecordAttachment.objects.filter(record_id__in=visible, removed_at__isnull=True).aggregate(n=Sum('file_size'))['n'] or 0
             quota = settings.STORAGE_QUOTA_GB * 1024 ** 3
             data = {'used_bytes': total, 'quota_bytes': quota or None, 'record_count': viewable_records(request.user).count()}
             cache.set(key, data, STORAGE_CACHE_SECONDS)
@@ -72,8 +73,23 @@ def _clean_target(target):
     return target
 
 
-def _pin_json(p):
-    return {'id': p.pk, 'label': p.label, 'target': p.target}
+def _pin_json(p, user):
+    return {
+        'id': p.pk, 'label': p.label, 'target': p.target, 'shared_with': p.shared_with,
+        'own': p.user_id == user.pk, 'owner_name': '' if p.user_id == user.pk else p.user.get_full_name(),
+    }
+
+
+def _clean_sharing(user, value):
+    """Who a saved view may be shared with: nobody, the owner's department, or (administrators) everyone."""
+    value = value or ''
+    if value not in ('', 'department', 'all'):
+        raise ValueError('Unknown sharing option.')
+    if value == 'department' and not user.department_id:
+        raise ValueError('You are not in a department, so there is nobody to share with.')
+    if value == 'all' and user.role != UserRole.ADMINISTRATOR:
+        raise ValueError('Only an administrator can share a view with everyone.')
+    return value
 
 
 class PinListCreateView(APIView):
@@ -81,20 +97,32 @@ class PinListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        return Response([_pin_json(p) for p in PinnedView.objects.filter(user=request.user)])
+        me = request.user
+        visible = Q(user=me) | Q(shared_with='all')
+        if me.department_id:
+            visible |= Q(shared_with='department', user__department_id=me.department_id)
+        rows = PinnedView.objects.filter(visible).select_related('user')
+        # A view someone shared that you already pinned yourself is listed once
+        own_targets = {p.target for p in rows if p.user_id == me.pk}
+        return Response([_pin_json(p, me) for p in rows if p.user_id == me.pk or p.target not in own_targets])
 
     def post(self, request):
         target = _clean_target(request.data.get('target'))
         label = ' '.join(str(request.data.get('label') or '').split())[:80]
         if not target or not label:
             return Response({'detail': 'A label and an in-app link are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            sharing = _clean_sharing(request.user, request.data.get('shared_with'))
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         mine = PinnedView.objects.filter(user=request.user)
         existing = mine.filter(target=target).first()
         if existing:
-            return Response(_pin_json(existing))
+            return Response(_pin_json(existing, request.user))
         if mine.count() >= MAX_PINS:
             return Response({'detail': f'You can pin at most {MAX_PINS} items. Remove one first.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(_pin_json(PinnedView.objects.create(user=request.user, label=label, target=target)), status=status.HTTP_201_CREATED)
+        pin = PinnedView.objects.create(user=request.user, label=label, target=target, shared_with=sharing)
+        return Response(_pin_json(pin, request.user), status=status.HTTP_201_CREATED)
 
 
 class PinDeleteView(APIView):
@@ -103,6 +131,18 @@ class PinDeleteView(APIView):
     def delete(self, request, pk):
         get_object_or_404(PinnedView, pk=pk, user=request.user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def patch(self, request, pk):
+        pin = get_object_or_404(PinnedView, pk=pk, user=request.user)
+        if 'label' in request.data:
+            pin.label = ' '.join(str(request.data['label']).split())[:80] or pin.label
+        if 'shared_with' in request.data:
+            try:
+                pin.shared_with = _clean_sharing(request.user, request.data['shared_with'])
+            except ValueError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        pin.save()
+        return Response(_pin_json(pin, request.user))
 
 
 def _folder_code(parent, name):

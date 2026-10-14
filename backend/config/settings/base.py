@@ -367,6 +367,8 @@ LEGAL_HOLD_NOTIFICATION_DAYS_BEFORE = 30
 # OnlyOffice Document Server
 ONLYOFFICE_JWT_SECRET = env('ONLYOFFICE_JWT_SECRET', default='psc_drfms_oo_secret_change_in_prod')
 # Internal Docker hostname backend uses when building callback/document URLs for OnlyOffice
+# How the backend reaches the OnlyOffice server inside Docker (used for conversions)
+ONLYOFFICE_INTERNAL_URL = env('ONLYOFFICE_INTERNAL_URL', default='http://onlyoffice')
 ONLYOFFICE_BACKEND_INTERNAL_URL = env('ONLYOFFICE_BACKEND_INTERNAL_URL', default='http://backend:8000')
 # Browser-accessible URL of the OnlyOffice server (used to load the JS SDK)
 ONLYOFFICE_PUBLIC_URL = env('ONLYOFFICE_PUBLIC_URL', default='http://localhost:8082')

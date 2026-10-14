@@ -95,6 +95,8 @@ class RecordDetailSerializer(serializers.ModelSerializer):
     author_name = serializers.CharField(source='author.get_full_name', read_only=True)
     latest_version = serializers.SerializerMethodField()
     related_records = serializers.SerializerMethodField()
+    metadata_missing = serializers.SerializerMethodField()
+    attachment_count = serializers.SerializerMethodField()
     version_count = serializers.SerializerMethodField()
     is_starred = serializers.SerializerMethodField()
 
@@ -113,7 +115,7 @@ class RecordDetailSerializer(serializers.ModelSerializer):
             'physical_file_ref', 'physical_location',
             'is_vital', 'is_on_legal_hold', 'is_draft',
             'retention_date', 'scheduled_destruction_date',
-            'tags', 'related_records',
+            'tags', 'related_records', 'custom_fields', 'metadata_missing', 'attachment_count',
             'version_count', 'latest_version', 'is_starred',
             'content_hash',
             'created_at', 'updated_at',
@@ -137,10 +139,21 @@ class RecordDetailSerializer(serializers.ModelSerializer):
         return None
 
     def get_related_records(self, obj):
+        from .relation_views import relations_for
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return []
         return [
-            {'id': str(r.id), 'reference_number': r.reference_number, 'title': r.title}
-            for r in obj.related_records.all()[:10]
+            {'id': r['record']['id'], 'reference_number': r['record']['reference_number'], 'title': r['record']['title'], 'label': r['label']}
+            for r in relations_for(request.user, obj)[:10]
         ]
+
+    def get_metadata_missing(self, obj):
+        from .metadata import missing_required
+        return missing_required(obj)
+
+    def get_attachment_count(self, obj):
+        return obj.attachments.filter(removed_at__isnull=True).count()
 
 
 MAX_TAGS = 20
@@ -224,8 +237,12 @@ class RecordUpdateSerializer(TagsValidationMixin, serializers.ModelSerializer):
             'title', 'description', 'document_type', 'classification_level',
             'record_series', 'originating_ministry', 'custodian', 'document_date',
             'received_date', 'physical_file_ref', 'physical_location',
-            'is_vital', 'tags', 'retention_date',
+            'is_vital', 'tags', 'retention_date', 'custom_fields',
         ]
+
+    def validate_custom_fields(self, value):
+        from .metadata import clean_custom_values
+        return clean_custom_values(value)
 
 
 ALLOWED_MIME_TYPES = {
