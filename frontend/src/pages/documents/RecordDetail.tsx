@@ -296,6 +296,7 @@ export default function RecordDetail() {
               <AttachmentsPanel
                 recordId={id}
                 canEdit={canDelete}
+                classification={record.classificationLevel}
                 mainFile={version ? { versionId: version.id, fileName: version.fileName ?? version.file_name ?? 'file', mimeType: version.mimeType ?? version.mime_type } : undefined}
                 onChanged={loadRecord}
               />

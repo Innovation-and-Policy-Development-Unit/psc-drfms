@@ -1,10 +1,11 @@
-import { Fragment, memo } from 'react'
+import { Fragment, memo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import type { RecordListItem } from '@/types/api'
 import { Badge } from '@/components/ui/Badge'
 import { ClassificationBadge, DocumentTypeBadge } from '@/lib/recordBadges'
-import { Users } from 'lucide-react'
+import { ChevronDown, ChevronRight, Paperclip, Users } from 'lucide-react'
+import { AttachmentList } from '@/components/drive/AttachmentList'
 import { useDriveListColumns } from '@/context/ResizableColumnsContext'
 import type { ColumnKey } from '@/hooks/useResizableColumns'
 import { RetentionText, formatDate, statusLabels } from '@/lib/driveFormat'
@@ -30,6 +31,8 @@ function DriveListRow(props: RecordRowProps) {
   const updated = record.updatedAt ?? (record as { updated_at?: string }).updated_at
   const typeInfo = getFileTypeInfo(record.mimeType, record.fileName)
   const Icon = typeInfo.Icon
+  const [open, setOpen] = useState(false)
+  const attachments = record.attachmentCount ?? 0
 
   const cell = (key: ColumnKey) => {
     switch (key) {
@@ -48,6 +51,7 @@ function DriveListRow(props: RecordRowProps) {
   }
 
   return (
+    <>
     <div
       className={clsx('drive-file-row', enableBulk && 'bulk', selected && 'selected', focused && 'focused')}
       style={{ gridTemplateColumns: gridTemplate(!!enableBulk) }}
@@ -69,10 +73,29 @@ function DriveListRow(props: RecordRowProps) {
       </Link>
       <Link to={`/document/${record.id}`} className="drive-file-name min-w-0">
         <p className="drive-file-name-title">{record.title}</p>
-        <p className="drive-file-name-meta">{ref}</p>
+        <p className="drive-file-name-meta">
+          {ref}
+          {attachments > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen((o) => !o) }}
+              aria-expanded={open}
+              aria-label={`${open ? 'Hide' : 'Show'} ${attachments} attachment${attachments > 1 ? 's' : ''} of ${record.title}`}
+              className="ms-2 inline-flex items-center gap-0.5 rounded px-1 text-[11px] hover:bg-[var(--surface-sunken)]"
+            >
+              {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}<Paperclip size={11} />{attachments}
+            </button>
+          )}
+        </p>
       </Link>
       {visibleColumns.map((c) => <Fragment key={c.key}>{cell(c.key)}</Fragment>)}
     </div>
+    {open && (
+      <div className="drive-attachment-rows" onClick={(e) => e.stopPropagation()}>
+        <AttachmentList recordId={record.id} />
+      </div>
+    )}
+    </>
   )
 }
 

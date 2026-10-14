@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Copy, Download, ExternalLink, Lock, ShieldAlert, Sparkles, Star, X } from 'lucide-react'
+import { Copy, Download, ExternalLink, Lock, Paperclip, ShieldAlert, Sparkles, Star, X } from 'lucide-react'
 import { getRecord, getRecordAudit } from '@/api/records'
 import { engineLabel } from '@/hooks/useAiStatus'
 import { RecordThumb } from '@/components/drive/RecordThumb'
@@ -8,6 +8,7 @@ import { ClassificationBadge, DocumentTypeBadge } from '@/lib/recordBadges'
 import { RetentionText, formatDate } from '@/lib/driveFormat'
 import { formatFileSize, getFileTypeInfo } from '@/utils/fileType'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { AttachmentList } from '@/components/drive/AttachmentList'
 import type { RecordDetail, RecordListItem } from '@/types/api'
 
 interface AuditEntry { id: number; action: string; userName?: string; timestamp: string }
@@ -130,6 +131,13 @@ export function DetailsPane({ record, selectedCount, onClose, onStar, onDownload
                 <Fact label="Modified">{formatDate(record.updatedAt)}</Fact>
                 <Fact label="Sharing">{record.isShared ? 'Shared' : 'Private'}</Fact>
               </dl>
+
+              {!!record.attachmentCount && (
+                <section>
+                  <h4 className="mb-1 flex items-center gap-1.5 text-xs font-semibold"><Paperclip size={12} /> Attachments ({record.attachmentCount})</h4>
+                  <AttachmentList recordId={record.id} variant="pane" />
+                </section>
+              )}
 
               {record.tags?.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">

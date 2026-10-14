@@ -30,6 +30,8 @@ export function hasThumbnail(mimeType?: string) {
 
 interface Props {
   recordId: string
+  /** Thumbnail of this attachment of the record instead of its main file. */
+  attachmentId?: number
   /** Changes when the file changes, so a new version gets a fresh thumbnail. */
   version?: string
   mimeType?: string
@@ -40,8 +42,8 @@ interface Props {
 }
 
 /** First-page preview, fetched only when scrolled into view. Falls back to `fallback` (the type icon). */
-function RecordThumbComponent({ recordId, version = '', mimeType, alt = '', className, fallback }: Props) {
-  const key = `${recordId}:${version}`
+function RecordThumbComponent({ recordId, attachmentId, version = '', mimeType, alt = '', className, fallback }: Props) {
+  const key = `${recordId}:${attachmentId ?? 'main'}:${version}`
   const supported = hasThumbnail(mimeType)
   const [src, setSrc] = useState<string | null>(() => cache.get(key) ?? null)
   const holder = useRef<HTMLDivElement>(null)
@@ -55,7 +57,7 @@ function RecordThumbComponent({ recordId, version = '', mimeType, alt = '', clas
     const observer = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return
       observer.disconnect()
-      limited(() => driveApi.thumbnail(recordId))
+      limited(() => driveApi.thumbnail(recordId, attachmentId))
         .then((res) => {
           const url = res.status === 200 && res.data.size > 0 ? URL.createObjectURL(res.data) : null
           cache.set(key, url)
@@ -65,7 +67,7 @@ function RecordThumbComponent({ recordId, version = '', mimeType, alt = '', clas
     }, { rootMargin: '200px' })
     observer.observe(el)
     return () => { cancelled = true; observer.disconnect() }
-  }, [key, recordId, supported])
+  }, [key, recordId, attachmentId, supported])
 
   return (
     <div ref={holder} className={className}>

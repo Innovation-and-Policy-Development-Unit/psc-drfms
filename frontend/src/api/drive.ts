@@ -33,6 +33,8 @@ export interface BinItem {
   fileSize: number
   deletedAt: string
   deletedByName: string
+  /** Set when this record was folded into another as an attachment. */
+  mergedInto: { id: string; referenceNumber: string; title: string } | null
 }
 
 export interface RecordsDeletedDetail { ids: string[]; title?: string }
@@ -65,8 +67,11 @@ export const driveApi = {
     client.post<{ restored: string[]; failed: Array<{ id: string; title: string; detail: string }>; count: number }>('/records/bin/restore/', { recordIds }),
   moveRecords: (recordIds: string[], recordSeries: string | number | null) =>
     client.post<{ detail: string; count: number }>('/records/bulk/', { recordIds, recordSeries }),
-  thumbnail: (recordId: string) =>
-    client.get<Blob>(`/records/${recordId}/thumbnail/`, { responseType: 'blob', validateStatus: (s) => s === 200 || s === 204 }),
+  thumbnail: (recordId: string, attachmentId?: number) =>
+    client.get<Blob>(
+      attachmentId ? `/records/${recordId}/attachments/${attachmentId}/thumbnail/` : `/records/${recordId}/thumbnail/`,
+      { responseType: 'blob', validateStatus: (s) => s === 200 || s === 204 },
+    ),
 }
 
 /** Changes in Quick access (pin / unpin) tell the sidebar to reload. */

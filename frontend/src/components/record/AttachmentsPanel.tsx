@@ -1,29 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Download, FileDown, Paperclip, RotateCcw, Trash2, Upload } from 'lucide-react'
+import { Download, Eye, FileDown, FilePlus2, Merge, Paperclip, RotateCcw, Trash2, Upload } from 'lucide-react'
 import clsx from 'clsx'
 import { featuresApi, readableError, saveBlob, type AttachmentRow } from '@/api/features'
 import { aiErrorMessage } from '@/api/ai'
 import { formatFileSize, getFileTypeInfo } from '@/utils/fileType'
 import { formatDate } from '@/lib/driveFormat'
+import { RecordThumb } from '@/components/drive/RecordThumb'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
+import AttachmentPreview from './AttachmentPreview'
+import PromoteAttachmentDialog from './PromoteAttachmentDialog'
+import AttachRecordDialog from './AttachRecordDialog'
 
 interface Props {
   recordId: string
   canEdit: boolean
+  /** Classification of this record: a record made from an attachment starts there. */
+  classification?: string
   /** Latest version of the main file, for the "PDF copy" actions. */
   mainFile?: { versionId: number | string; fileName: string; mimeType?: string }
   onChanged?: () => void
 }
 
+const TEXT_STATUS = {
+  indexed: { label: 'Searchable', tone: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300', hint: 'Its text is included in search and in AI answers' },
+  pending: { label: 'Reading…', tone: 'text-amber-700 bg-amber-50 dark:bg-amber-500/15 dark:text-amber-300', hint: 'Its text is being read so it can be searched' },
+  none: { label: 'No text found', tone: 'text-gray-500 bg-gray-100 dark:bg-white/10 dark:text-gray-300', hint: 'Nothing readable was found in this file' },
+} as const
+
 /** Extra files that belong with the record (annexes, enclosures, a PDF copy), separate from the versions of the main file. */
-export default function AttachmentsPanel({ recordId, canEdit, mainFile, onChanged }: Props) {
+export default function AttachmentsPanel({ recordId, canEdit, classification = 'internal', mainFile, onChanged }: Props) {
   const [rows, setRows] = useState<AttachmentRow[] | null>(null)
   const [showRemoved, setShowRemoved] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [dragging, setDragging] = useState(false)
+  const [preview, setPreview] = useState<AttachmentRow | null>(null)
+  const [promoting, setPromoting] = useState<AttachmentRow | null>(null)
+  const [attaching, setAttaching] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   const load = useCallback(() => {
@@ -32,6 +47,14 @@ export default function AttachmentsPanel({ recordId, canEdit, mainFile, onChange
       .catch((e) => { setRows([]); setError(aiErrorMessage(e)) })
   }, [recordId, showRemoved, canEdit])
   useEffect(() => { setRows(null); load() }, [load])
+
+  // Files are read in the background; check back while any is still being read
+  const reading = rows?.some((r) => r.textStatus === 'pending' && !r.removed) ?? false
+  useEffect(() => {
+    if (!reading) return
+    const t = setInterval(load, 4000)
+    return () => clearInterval(t)
+  }, [reading, load])
 
   const run = async (key: string, job: () => Promise<unknown>, done?: string) => {
     setBusy(key)
@@ -56,7 +79,6 @@ export default function AttachmentsPanel({ recordId, canEdit, mainFile, onChange
     const res = await featuresApi.convertToPdf(recordId, mainFile!.versionId, 'download')
     saveBlob(res.data as Blob, `${mainFile!.fileName.replace(/\.[^.]+$/, '')}.pdf`)
   })
-
   const pdfSave = () => run('pdf-save', () => featuresApi.convertToPdf(recordId, mainFile!.versionId, 'save'), 'Saved a PDF copy.')
 
   return (
@@ -67,10 +89,11 @@ export default function AttachmentsPanel({ recordId, canEdit, mainFile, onChange
           <p className="mt-0.5 text-xs text-muted">Annexes and enclosures that go with this record. New versions of the main file are in Versions.</p>
         </div>
         {canEdit && (
-          <>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => setAttaching(true)}><Merge size={14} /> Attach a record</Button>
             <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => input.current?.click()}><Upload size={14} /> Add files</Button>
             <input ref={input} type="file" multiple hidden onChange={(e) => { if (e.target.files) upload(e.target.files); e.target.value = '' }} />
-          </>
+          </div>
         )}
       </div>
 
@@ -104,18 +127,30 @@ export default function AttachmentsPanel({ recordId, canEdit, mainFile, onChange
           {rows.map((a) => {
             const info = getFileTypeInfo(a.mimeType, a.fileName)
             const Icon = info.Icon
+            const status = TEXT_STATUS[a.textStatus]
             return (
               <li key={a.id} className={clsx('flex items-center gap-3 p-3', a.removed && 'opacity-60')}>
-                <span className={clsx('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', info.light)}><Icon size={18} /></span>
+                <button type="button" onClick={() => !a.removed && setPreview(a)} disabled={a.removed} aria-label={`Preview ${a.fileName}`} className="shrink-0 rounded-lg focus-visible:ring-2">
+                  <RecordThumb
+                    recordId={recordId}
+                    attachmentId={a.id}
+                    mimeType={a.mimeType}
+                    className={clsx('h-12 w-10 overflow-hidden rounded-lg border border-[var(--border-default)]', info.light)}
+                    fallback={<span className="flex h-full w-full items-center justify-center"><Icon size={18} /></span>}
+                  />
+                </button>
                 <div className="min-w-0 flex-1">
                   <p className={clsx('truncate text-sm font-medium', a.removed && 'line-through')}>{a.fileName}</p>
                   <p className="text-xs text-muted">
                     {formatFileSize(a.fileSize)} · {formatDate(a.createdAt)}{a.uploadedByName ? ` · ${a.uploadedByName}` : ''}
                     {a.role === 'pdf_copy' && <span className="ms-2 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">PDF copy</span>}
-                    {a.description && a.role !== 'pdf_copy' ? ` · ${a.description}` : ''}
+                    {!a.removed && <span title={status.hint} className={clsx('ms-2 rounded px-1.5 py-0.5 text-[10px] font-medium', status.tone)}>{status.label}</span>}
                   </p>
+                  {a.description && a.role !== 'pdf_copy' && <p className="truncate text-xs text-muted">{a.description}</p>}
                 </div>
-                {!a.removed && <button type="button" onClick={() => download(a)} disabled={busy !== null} aria-label={`Download ${a.fileName}`} className="rounded p-1.5 text-gray-500 hover:bg-[var(--surface-sunken)]"><Download size={15} /></button>}
+                {!a.removed && <button type="button" onClick={() => setPreview(a)} aria-label={`View ${a.fileName}`} title="Preview" className="rounded p-1.5 text-gray-500 hover:bg-[var(--surface-sunken)]"><Eye size={15} /></button>}
+                {!a.removed && <button type="button" onClick={() => download(a)} disabled={busy !== null} aria-label={`Download ${a.fileName}`} title="Download" className="rounded p-1.5 text-gray-500 hover:bg-[var(--surface-sunken)]"><Download size={15} /></button>}
+                {canEdit && !a.removed && <button type="button" onClick={() => setPromoting(a)} aria-label={`Make ${a.fileName} its own record`} title="Make it its own record" className="rounded p-1.5 text-gray-500 hover:bg-[var(--surface-sunken)]"><FilePlus2 size={15} /></button>}
                 {canEdit && (a.removed ? (
                   <button type="button" onClick={() => run(`r${a.id}`, () => featuresApi.attachmentAction(recordId, a.id, 'restore'))} className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-[var(--surface-sunken)]"><RotateCcw size={13} /> Restore</button>
                 ) : (
@@ -132,6 +167,10 @@ export default function AttachmentsPanel({ recordId, canEdit, mainFile, onChange
           <input type="checkbox" className="rounded-sm" checked={showRemoved} onChange={(e) => setShowRemoved(e.target.checked)} /> Show removed files
         </label>
       )}
+
+      {preview && <AttachmentPreview recordId={recordId} attachment={preview} onClose={() => setPreview(null)} />}
+      {promoting && <PromoteAttachmentDialog recordId={recordId} attachment={promoting} classification={classification} onClose={() => setPromoting(null)} onDone={() => { load(); onChanged?.() }} />}
+      {attaching && <AttachRecordDialog recordId={recordId} onClose={() => setAttaching(false)} onDone={() => { setNotice('Attached.'); load(); onChanged?.() }} />}
     </div>
   )
 }

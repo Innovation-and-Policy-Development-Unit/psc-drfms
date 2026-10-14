@@ -487,3 +487,12 @@
   }
   .drive-group-header:hover { color: var(--text-primary); }
 }
+
+/* Attachments listed under a file row */
+@layer components {
+  .drive-attachment-rows {
+    @apply border-b px-4 pb-2 ps-16;
+    background: var(--surface-sunken);
+    border-color: var(--border-default);
+  }
+}

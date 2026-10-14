@@ -125,6 +125,7 @@ export default function RecycleBin() {
                     <td className="max-w-sm">
                       <p className="truncate text-sm font-medium text-[var(--text-primary)]">{i.title}</p>
                       <p className="font-mono-ref text-xs text-muted">{i.referenceNumber}</p>
+                      {i.mergedInto && <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">Attached to <Link to={`/document/${i.mergedInto.id}`} className="underline">{i.mergedInto.referenceNumber} {i.mergedInto.title}</Link></p>}
                     </td>
                     <td><ClassificationBadge level={i.classificationLevel} /></td>
                     <td className="text-xs">{i.recordSeriesName || '—'}</td>

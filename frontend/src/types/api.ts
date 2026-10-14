@@ -59,6 +59,8 @@ export interface RecordListItem {
   /** First lines of the AI summary, for tile previews. */
   summaryPreview?: string
   isShared?: boolean
+  /** Attachments on the record (not counting removed ones). */
+  attachmentCount?: number
   matchSnippet?: string
   matchedBy?: "keyword" | "meaning" | "both" | null
   rank?: number

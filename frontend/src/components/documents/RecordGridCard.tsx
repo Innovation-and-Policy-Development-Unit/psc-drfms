@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Users } from 'lucide-react'
+import { Paperclip, Users } from 'lucide-react'
 import type { RecordListItem } from '@/types/api'
 import { getFileTypeInfo } from '@/utils/fileType'
 import { RecordThumb } from '@/components/drive/RecordThumb'
@@ -70,6 +70,7 @@ function RecordGridCardComponent({
         <span className="drive-tile-meta flex items-center gap-1.5">
           <span className="truncate">{ref}</span>
           {record.isShared && <Users size={11} className="shrink-0" aria-label="Shared" />}
+          {!!record.attachmentCount && <span className="inline-flex shrink-0 items-center gap-0.5" title={`${record.attachmentCount} attachment${record.attachmentCount > 1 ? 's' : ''}`}><Paperclip size={11} />{record.attachmentCount}</span>}
         </span>
         {record.summaryPreview && <span className="drive-tile-summary">{record.summaryPreview}</span>}
         <span className="mt-1.5 flex"><ClassificationBadge level={record.classificationLevel} /></span>

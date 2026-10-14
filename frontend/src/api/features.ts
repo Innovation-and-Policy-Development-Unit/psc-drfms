@@ -2,12 +2,13 @@ import client from './client'
 import type { RecordListItem } from '@/types/api'
 
 // ---- relationships ----
-export type RelationType = 'related' | 'replies_to' | 'supersedes' | 'refers_to'
+export type RelationType = 'related' | 'replies_to' | 'supersedes' | 'refers_to' | 'annex_of'
 export const RELATION_TYPES: Array<{ value: RelationType; label: string }> = [
   { value: 'related', label: 'Related to' },
   { value: 'replies_to', label: 'Replies to' },
   { value: 'supersedes', label: 'Supersedes' },
   { value: 'refers_to', label: 'Refers to' },
+  { value: 'annex_of', label: 'Annex of' },
 ]
 export interface RelationRow {
   id: number
@@ -31,6 +32,8 @@ export interface AttachmentRow {
   createdAt: string
   uploadedByName: string
   removed: boolean
+  /** indexed = its text is searchable; pending = still being read; none = nothing readable in it */
+  textStatus: 'indexed' | 'pending' | 'none'
 }
 
 // ---- duplicates ----
@@ -138,8 +141,12 @@ export const featuresApi = {
   },
   attachmentAction: (recordId: string, attachmentId: number, action: 'remove' | 'restore') =>
     client.post<AttachmentRow>(`/records/${recordId}/attachments/${attachmentId}/${action}/`),
-  downloadAttachment: (recordId: string, attachmentId: number) =>
-    client.get<Blob>(`/records/${recordId}/attachments/${attachmentId}/download/`, { responseType: 'blob' }),
+  downloadAttachment: (recordId: string, attachmentId: number, inline = false) =>
+    client.get<Blob>(`/records/${recordId}/attachments/${attachmentId}/download/`, { responseType: 'blob', params: inline ? { inline: 1 } : {} }),
+  promoteAttachment: (recordId: string, attachmentId: number, body: { title?: string; classificationLevel?: string; recordSeries?: string }) =>
+    client.post<{ id: string; referenceNumber: string }>(`/records/${recordId}/attachments/${attachmentId}/promote/`, body),
+  attachRecord: (recordId: string, sourceId: string) =>
+    client.post<{ results: AttachmentRow[]; attached: string }>(`/records/${recordId}/attachments/from-record/`, { record: sourceId }),
 
   // PDF conversion
   convertToPdf: (recordId: string, versionId: string | number, mode: 'download' | 'save') =>
