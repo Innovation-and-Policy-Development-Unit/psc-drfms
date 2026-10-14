@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { featuresApi, type CustomFieldDef, type MetadataProfilesResponse } from '@/api/features'
 import { resetMetadataProfilesCache } from '@/components/record/MetadataCard'
 import { aiErrorMessage } from '@/api/ai'
+import { lookup, toCamel } from '@/lib/caseKeys'
 import { PageShell } from '@/components/ui/PageShell'
 import { Panel } from '@/components/ui/Panel'
 import { Button } from '@/components/ui/Button'
@@ -28,7 +29,7 @@ export default function MetadataAdmin() {
   }, [])
 
   useEffect(() => {
-    const p = data?.profiles[type]
+    const p = lookup(data?.profiles, type)
     setRequired(p?.requiredFields ?? [])
     setCustom(p?.customFields ?? [])
     setNotice('')
@@ -42,7 +43,7 @@ export default function MetadataAdmin() {
     try {
       const fields = custom.map((f) => ({ ...f, key: f.key || slug(f.label) }))
       const { data: saved } = await featuresApi.saveMetadataProfile(type, { requiredFields: required, customFields: fields })
-      setData((d) => (d ? { ...d, profiles: { ...d.profiles, [type]: saved } } : d))
+      setData((d) => (d ? { ...d, profiles: { ...d.profiles, [toCamel(type)]: saved } } : d))
       resetMetadataProfilesCache()
       setNotice('Saved. Records of this type now follow these rules.')
     } catch (e) { setError(aiErrorMessage(e)) } finally { setBusy(false) }
@@ -59,7 +60,7 @@ export default function MetadataAdmin() {
             <div className="max-w-xs">
               <label className="mb-1 block text-sm font-medium" htmlFor="md-type">Document type</label>
               <select id="md-type" value={type} onChange={(e) => setType(e.target.value)} className="input w-full">
-                {data.documentTypes.map((t) => <option key={t.value} value={t.value}>{t.label}{data.profiles[t.value] ? ' •' : ''}</option>)}
+                {data.documentTypes.map((t) => <option key={t.value} value={t.value}>{t.label}{lookup(data.profiles, t.value) ? ' •' : ''}</option>)}
               </select>
               <p className="mt-1 text-xs text-muted">A dot marks types that already have rules.</p>
             </div>

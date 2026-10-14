@@ -4,6 +4,7 @@ import { featuresApi, type MetadataProfilesResponse } from '@/api/features'
 import { updateRecord } from '@/api/records'
 import { aiErrorMessage } from '@/api/ai'
 import { formatDate } from '@/lib/driveFormat'
+import { lookup, withSnakeKeys } from '@/lib/caseKeys'
 import type { RecordDetail } from '@/types/api'
 import { Button } from '@/components/ui/Button'
 
@@ -38,11 +39,11 @@ interface Props { record: RecordDetail; canEdit: boolean; onSaved: () => void }
 /** All of a record's descriptive fields in one place, with the ones this document type requires marked. */
 export default function MetadataCard({ record, canEdit, onSaved }: Props) {
   const profiles = useMetadataProfiles()
-  const profile = profiles?.profiles[record.documentType]
+  const profile = lookup(profiles?.profiles, record.documentType)
   const required = new Set(profile?.requiredFields ?? [])
   const missing = record.metadataMissing ?? []
   const custom = profile?.customFields ?? []
-  const values = record.customFields ?? {}
+  const values = withSnakeKeys(record.customFields)
 
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({})
@@ -54,7 +55,7 @@ export default function MetadataCard({ record, canEdit, onSaved }: Props) {
     CORE_FORM.forEach((f) => { base[f.key] = String((record as unknown as Record<string, unknown>)[f.key] ?? '') })
     custom.forEach((f) => { base[`c:${f.key}`] = String(values[f.key] ?? '') })
     return base
-  }, [record, custom, values])
+  }, [record, custom, record.customFields])
 
   const start = () => { setForm(initial); setError(''); setEditing(true) }
 
