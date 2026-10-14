@@ -51,7 +51,8 @@ def index_record(record_id):
         return 0
 
     latest = record.versions.order_by('-version_number').first()
-    passages = record_passages(record, latest.ocr_text if latest else '')
+    annexes = list(record.attachments.filter(removed_at__isnull=True).exclude(ocr_text='').values_list('file_name', 'ocr_text'))
+    passages = record_passages(record, latest.ocr_text if latest else '', annexes)
     hashes = [_hash(p) for p in passages]
 
     existing = {c.chunk_index: c for c in RecordChunk.objects.filter(record=record)}

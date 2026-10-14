@@ -68,6 +68,7 @@ class RecordListCreateView(generics.ListCreateAPIView):
                 mime_type=Subquery(latest_version.values('mime_type')[:1]),
                 file_size=Subquery(latest_version.values('file_size')[:1]),
                 _user_starred=Count('stars', filter=Q(stars__user=user), distinct=True),
+                _attachment_count=Count('attachments', filter=Q(attachments__removed_at__isnull=True), distinct=True),
                 _summary_preview=Left(Subquery(latest_version.values('ai_summary')[:1]), 160),
                 _is_shared=Exists(SharedLink.objects.filter(record=OuterRef('pk'), is_active=True))
                 | Exists(DocumentPermission.objects.filter(record=OuterRef('pk'))),

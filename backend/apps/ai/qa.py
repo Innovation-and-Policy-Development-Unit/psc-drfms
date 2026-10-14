@@ -59,8 +59,12 @@ def clean_messages(raw):
 
 
 def _latest_text(record):
+    """The main file's text, followed by the text of each attachment (labelled)."""
     version = record.versions.order_by('-version_number').first()
-    return (version.ocr_text if version else '') or ''
+    text = (version.ocr_text if version else '') or ''
+    for att in record.attachments.filter(removed_at__isnull=True).exclude(ocr_text='').only('file_name', 'ocr_text'):
+        text += f'\n\n[Attachment: {att.file_name}]\n{att.ocr_text}'
+    return text
 
 
 def _semantic_passages(user, question):

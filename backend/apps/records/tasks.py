@@ -50,6 +50,10 @@ def process_record_ocr(self, version_id):
             img = Image.open(io.BytesIO(file_content))
             text = pytesseract.image_to_string(img, lang=settings.OCR_LANGUAGES)
             images = [img]
+        else:
+            # Word, Excel, PowerPoint and plain text carry their text inside the file
+            from .textextract import extract_text
+            text = extract_text(file_content, mime, version.file_name)
 
         text = _vision_fallback(version, text, images)
 
@@ -115,9 +119,11 @@ def update_record_search_vector(record_id):
                 setweight(to_tsvector('english', coalesce(description, '')), 'B') ||
                 setweight(to_tsvector('english', coalesce(
                     (SELECT string_agg(ocr_text, ' ') FROM records_recordversion WHERE record_id = %s), ''
+                ) || ' ' || coalesce(
+                    (SELECT string_agg(ocr_text, ' ') FROM records_recordattachment WHERE record_id = %s AND removed_at IS NULL), ''
                 )), 'C')
             WHERE id = %s
-        """, [record_id, record_id])
+        """, [record_id, record_id, record_id])
 
 
 @shared_task
@@ -156,3 +162,33 @@ def check_duplicate_on_upload(version_id):
             notification_type='warning',
             related_record_id=str(version.record_id),
         )
+
+
+def refresh_record_index(record_id):
+    """Rebuild a record's keyword search entry and queue its semantic (AI) index after its attachments changed."""
+    update_record_search_vector.delay(str(record_id))
+    from django.conf import settings as dj
+    if dj.SEMANTIC_SEARCH_ENABLED:
+        from apps.search.tasks import embed_record
+        embed_record.delay(str(record_id))
+
+
+@shared_task(bind=True, max_retries=2)
+def process_attachment_text(self, attachment_id):
+    """Read the text of an attachment so that searching, and the AI, can find what is inside it."""
+    from .models import RecordAttachment
+    from .textextract import extract_text
+
+    att = RecordAttachment.objects.filter(pk=attachment_id).first()
+    if att is None:
+        return
+    try:
+        with att.file.open('rb') as fh:
+            content = fh.read()
+        att.ocr_text = extract_text(content, att.mime_type, att.file_name)
+    except Exception as exc:
+        logger.error('Reading attachment %s failed: %s', attachment_id, exc)
+        raise self.retry(exc=exc, countdown=60)
+    att.ocr_processed = True
+    att.save(update_fields=['ocr_text', 'ocr_processed'])
+    refresh_record_index(att.record_id)

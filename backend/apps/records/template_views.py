@@ -210,5 +210,7 @@ class TemplateUseView(APIView):
         )
         version.file.save(file_name, ContentFile(content), save=False)
         version.save()
+        from .tasks import process_record_ocr
+        process_record_ocr.delay(str(version.id))
         log_action(request, AuditAction.CREATE, record, extra={'from_template': template.name})
         return Response({'id': str(record.pk), 'reference_number': record.reference_number}, status=status.HTTP_201_CREATED)

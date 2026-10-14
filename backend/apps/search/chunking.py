@@ -41,11 +41,18 @@ def split_text(text, size=CHUNK_CHARS, overlap=OVERLAP_CHARS, limit=MAX_BODY_CHU
     return chunks[:limit]
 
 
-def record_passages(record, ocr_text):
-    """All passages to index for ``record``: header first, then the body."""
+def record_passages(record, ocr_text, attachments=()):
+    """All passages to index for ``record``: header first, then the body, then each attachment's text.
+
+    ``attachments`` is an iterable of (file name, text); each is labelled so a passage says where it came from.
+    """
     passages = []
     header = header_text(record)
     if header:
         passages.append(header)
-    passages.extend(split_text(ocr_text))
+    body = ocr_text or ''
+    for name, text in attachments:
+        if text and text.strip():
+            body += f'\n\n[Attachment: {name}]\n{text}'
+    passages.extend(split_text(body))
     return passages

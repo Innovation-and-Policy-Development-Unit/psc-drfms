@@ -54,6 +54,7 @@ class RecordListSerializer(serializers.ModelSerializer):
     is_starred = serializers.SerializerMethodField()
     summary_preview = serializers.SerializerMethodField()
     is_shared = serializers.SerializerMethodField()
+    attachment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Record
@@ -63,7 +64,7 @@ class RecordListSerializer(serializers.ModelSerializer):
             'custodian', 'custodian_name', 'document_date', 'is_vital',
             'is_on_legal_hold', 'is_draft', 'tags', 'version_count',
             'file_name', 'mime_type', 'file_size', 'is_starred',
-            'retention_date', 'summary_preview', 'is_shared',
+            'retention_date', 'summary_preview', 'is_shared', 'attachment_count',
             'created_at', 'updated_at',
         ]
 
@@ -73,6 +74,9 @@ class RecordListSerializer(serializers.ModelSerializer):
 
     def get_is_shared(self, obj):
         return bool(getattr(obj, '_is_shared', False))
+
+    def get_attachment_count(self, obj):
+        return getattr(obj, '_attachment_count', 0) or 0
 
     def get_is_starred(self, obj):
         request = self.context.get('request')

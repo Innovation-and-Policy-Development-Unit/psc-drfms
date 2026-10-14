@@ -18,6 +18,7 @@ INVERSE_LABELS = {
     RecordRelation.REPLIES_TO: 'Replied to by',
     RecordRelation.SUPERSEDES: 'Superseded by',
     RecordRelation.REFERS_TO: 'Referred to by',
+    RecordRelation.ANNEX_OF: 'Has annex',
 }
 
 

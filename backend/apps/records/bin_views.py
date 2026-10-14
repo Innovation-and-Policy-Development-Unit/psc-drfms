@@ -27,7 +27,7 @@ def _bin_queryset(user):
     return (
         Record.objects.filter(deleted_at__isnull=False, destruction_certificate__isnull=True)
         .filter(visible_records_q(user))
-        .select_related('record_series', 'deleted_by')
+        .select_related('record_series', 'deleted_by', 'merged_into')
         .annotate(
             file_name=Subquery(latest.values('file_name')[:1]),
             file_size=Subquery(latest.values('file_size')[:1]),
@@ -57,6 +57,7 @@ class RecycleBinView(APIView):
                 'file_size': r.file_size or 0,
                 'deleted_at': r.deleted_at,
                 'deleted_by_name': r.deleted_by.get_full_name() if r.deleted_by else '',
+                'merged_into': {'id': str(r.merged_into_id), 'reference_number': r.merged_into.reference_number, 'title': r.merged_into.title} if r.merged_into else None,
             }
             for r in qs.order_by('-deleted_at')[:MAX_ROWS]
         ]
@@ -84,9 +85,9 @@ class RestoreFromBinView(APIView):
             except PermissionDenied:
                 failed.append({'id': str(record.pk), 'title': record.title, 'detail': 'You do not have permission to restore this record.'})
                 continue
-            record.destroyed_at = record.deleted_at = record.deleted_by = None
+            record.destroyed_at = record.deleted_at = record.deleted_by = record.merged_into = None
             # post_save re-queues the semantic index; the keyword index is rebuilt here
-            record.save(update_fields=['destroyed_at', 'deleted_at', 'deleted_by'])
+            record.save(update_fields=['destroyed_at', 'deleted_at', 'deleted_by', 'merged_into'])
             update_record_search_vector.delay(str(record.pk))
             log_action(request, AuditAction.RESTORE, record)
             restored.append(str(record.pk))

@@ -82,6 +82,8 @@ class Record(models.Model):
     # A deleted record is only erased through the destruction-certificate process, never from the bin.
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='deleted_records')
+    # Set when this record was folded into another as an attachment (it then sits in the Recycle bin)
+    merged_into = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='merged_records')
     destruction_certificate = models.ForeignKey('compliance.DestructionCertificate', null=True, blank=True, on_delete=models.SET_NULL, related_name='destroyed_records')
 
     # Full-text search
@@ -227,11 +229,13 @@ class RecordRelation(models.Model):
     REPLIES_TO = 'replies_to'
     SUPERSEDES = 'supersedes'
     REFERS_TO = 'refers_to'
+    ANNEX_OF = 'annex_of'
     TYPE_CHOICES = [
         (RELATED, 'Related to'),
         (REPLIES_TO, 'Replies to'),
         (SUPERSEDES, 'Supersedes'),
         (REFERS_TO, 'Refers to'),
+        (ANNEX_OF, 'Annex of'),
     ]
 
     from_record = models.ForeignKey('Record', on_delete=models.CASCADE, related_name='relations_out')
@@ -266,6 +270,11 @@ class RecordAttachment(models.Model):
     description = models.CharField(max_length=300, blank=True)
     uploaded_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, related_name='+')
     created_at = models.DateTimeField(auto_now_add=True)
+    # Text read from the file, so a search (and the AI) can find what is inside an annex
+    ocr_text = models.TextField(blank=True)
+    ocr_processed = models.BooleanField(default=False)
+    thumbnail = models.ImageField(upload_to='records/thumbnails/', blank=True)
+    thumbnail_failed = models.BooleanField(default=False)
     # Files are never erased: removing one hides it, and it can be restored
     removed_at = models.DateTimeField(null=True, blank=True)
     removed_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')

@@ -156,6 +156,11 @@ class UnifiedSearchView(APIView):
                 record_id__in=[r.id for r in page_qs], ocr_text__icontains=term,
             ).only('record_id', 'ocr_text'):
                 hits.setdefault(v.record_id, v.ocr_text)
+            from apps.records.models import RecordAttachment
+            for a in RecordAttachment.objects.filter(
+                record_id__in=[r.id for r in page_qs], removed_at__isnull=True, ocr_text__icontains=term,
+            ).only('record_id', 'ocr_text'):
+                hits.setdefault(a.record_id, a.ocr_text)
 
         serialized = RecordListSerializer(page_qs, many=True, context={'request': request}).data
         results = []
