@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { useDriveUI, type DriveViewMode } from '@/context/DriveUIContext'
 import { useDriveListColumns } from '@/context/ResizableColumnsContext'
 import { COLUMNS } from '@/hooks/useResizableColumns'
+import { GROUP_OPTIONS } from '@/lib/recordGroups'
 
 export interface SortField {
   field: string
@@ -32,10 +33,13 @@ const VIEWS: Array<{ mode: DriveViewMode; label: string; Icon: typeof List }> = 
 interface Props {
   ordering: string
   onOrderingChange: (value: string) => void
+  /** Active grouping (see GROUP_OPTIONS) or '' for none. */
+  group?: string
+  onGroupChange?: (value: string) => void
 }
 
 /** One menu for how the list looks: view style, sort field and direction, which columns show. */
-export function ViewSortMenu({ ordering, onOrderingChange }: Props) {
+export function ViewSortMenu({ ordering, onOrderingChange, group = '', onGroupChange }: Props) {
   const { viewMode, setViewMode, infoPaneOpen, toggleInfoPane } = useDriveUI()
   const { visibleKeys, toggleColumn, resetColumns } = useDriveListColumns()
   const [open, setOpen] = useState(false)
@@ -85,7 +89,21 @@ export function ViewSortMenu({ ordering, onOrderingChange }: Props) {
             ))}
 
             <div className="my-1 border-t border-[var(--border-default)]" />
-            <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Sort by</p>
+            {onGroupChange && (
+              <>
+                <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">Group by</p>
+                {[{ value: '', label: 'No grouping' }, ...GROUP_OPTIONS].map((g) => (
+                  <button key={g.value} type="button" role="menuitemradio" aria-checked={group === g.value}
+                    onClick={() => onGroupChange(g.value)}
+                    className={clsx('flex w-full items-center gap-2.5 px-3 py-1.5 text-start hover:bg-[var(--surface-sunken)]', group === g.value && 'font-semibold text-[var(--text-primary)]')}>
+                    <span className="flex w-4 justify-center">{group === g.value && <Check size={14} />}</span>
+                    <span className="flex-1">{g.label}</span>
+                  </button>
+                ))}
+                <div className="my-1 border-t border-[var(--border-default)]" />
+              </>
+            )}
+            <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">{group ? 'Sort within groups by' : 'Sort by'}</p>
             {SORT_FIELDS.map((f) => (
               <button key={f.field} type="button" role="menuitemradio" aria-checked={f.field === field}
                 onClick={() => chooseSort(f)}

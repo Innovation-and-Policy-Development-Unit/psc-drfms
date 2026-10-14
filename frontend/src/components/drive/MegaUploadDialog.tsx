@@ -1,9 +1,12 @@
 import { useState, useRef, DragEvent, FormEvent, useEffect } from 'react'
-import { UploadCloud, X, FileUp } from 'lucide-react'
+import { UploadCloud, X, FileUp, AlertTriangle } from 'lucide-react'
 import clsx from 'clsx'
 import { useTransfers } from '@/context/TransferContext'
 import { Button } from '@/components/ui/Button'
 import { formatFileSize } from '@/utils/fileType'
+import { featuresApi, sha256Hex, type DuplicateResult } from '@/api/features'
+
+const fileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`
 
 interface MegaUploadDialogProps {
   open: boolean
@@ -27,6 +30,26 @@ export default function MegaUploadDialog({ open, onClose, initialFiles = [] }: M
     if (open && initialFiles.length) setFiles(initialFiles)
     if (!open) setFiles([])
   }, [open, initialFiles])
+
+  // Before anything is uploaded, ask whether the registry already holds the same file or a near-identical title.
+  // The file is fingerprinted in the browser, so nothing is sent just to ask.
+  const [dups, setDups] = useState<Record<string, DuplicateResult>>({})
+  const checked = useRef(new Set<string>())
+  useEffect(() => {
+    const fresh = files.filter((f) => !checked.current.has(fileKey(f)))
+    if (!open || fresh.length === 0) return
+    fresh.forEach((f) => checked.current.add(fileKey(f)))
+    let live = true
+    ;(async () => {
+      const items = await Promise.all(fresh.map(async (f) => ({ name: f.name, sha256: (await sha256Hex(f)) ?? '' })))
+      try {
+        const { data } = await featuresApi.checkDuplicates(items)
+        if (live) setDups((prev) => ({ ...prev, ...Object.fromEntries(data.results.map((r) => [fileKey(fresh[r.index]), r])) }))
+      } catch { /* the warning is a courtesy: uploading still works without it */ }
+    })()
+    return () => { live = false }
+  }, [files, open])
+  useEffect(() => { if (!open) { checked.current = new Set(); setDups({}) } }, [open])
 
   if (!open) return null
 
@@ -90,7 +113,7 @@ export default function MegaUploadDialog({ open, onClose, initialFiles = [] }: M
           {files.length > 0 && (
             <ul className="mega-upload-queue">
               {files.map((f, i) => (
-                <li key={`${f.name}-${i}`} className="mega-upload-queue-item">
+                <li key={`${f.name}-${i}`} className="mega-upload-queue-item flex-wrap">
                   <FileUp size={16} className="shrink-0 text-muted" />
                   <span className="flex-1 truncate text-sm">{f.name}</span>
                   <span className="text-xs text-muted tabular-nums">{formatFileSize(f.size)}</span>
@@ -101,6 +124,20 @@ export default function MegaUploadDialog({ open, onClose, initialFiles = [] }: M
                   >
                     <X size={14} />
                   </button>
+                  {(dups[fileKey(f)]?.exact.length || dups[fileKey(f)]?.similar.length) ? (
+                    <div className="basis-full rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                      <p className="flex items-center gap-1.5 font-medium"><AlertTriangle size={13} /> {dups[fileKey(f)].exact.length ? 'This exact file is already in the registry' : 'A record with a very similar title exists'}</p>
+                      <ul className="mt-1 space-y-0.5">
+                        {[...dups[fileKey(f)].exact, ...dups[fileKey(f)].similar].slice(0, 4).map((d) => (
+                          <li key={d.id + (d.foundIn ?? '')}>
+                            <a href={`/document/${d.id}`} target="_blank" rel="noreferrer" className="underline">{d.referenceNumber} {d.title}</a>
+                            {d.foundIn ? ` (${d.foundIn})` : d.similarity ? ` (${Math.round(d.similarity * 100)}% similar)` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-1">Remove it from the list, or upload it anyway if it is a different document.</p>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -145,7 +182,7 @@ export default function MegaUploadDialog({ open, onClose, initialFiles = [] }: M
           <footer className="mega-dialog-footer">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={files.length === 0}>
-              Upload {files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''}` : ''}
+              {files.some((f) => dups[fileKey(f)]?.exact.length) ? 'Upload anyway' : 'Upload'} {files.length > 0 ? `${files.length} file${files.length > 1 ? 's' : ''}` : ''}
             </Button>
           </footer>
         </form>

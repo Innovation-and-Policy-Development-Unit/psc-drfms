@@ -1,5 +1,6 @@
 import { memo, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react'
 import { FolderOpen } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import clsx from 'clsx'
@@ -29,6 +30,7 @@ import {
 } from '@/lib/driveRecordActions'
 import * as recordsApi from '@/api/records'
 import { RECORDS_CHANGED_EVENT, RECORDS_DELETED_EVENT } from '@/api/drive'
+import { GROUP_OPTIONS, groupRecords } from '@/lib/recordGroups'
 import { useTransfers } from '@/context/TransferContext'
 import type { BreadcrumbItem, RecordListItem } from '@/types/api'
 
@@ -93,9 +95,15 @@ function FileBrowserInner({
 
   const page = parseInt(searchParams.get('page') || '1', 10)
   const ordering = searchParams.get('ordering') || defaultOrdering
+  // Grouping puts each group's records side by side through the API ordering, and loads more rows per page
+  const groupOption = GROUP_OPTIONS.find((g) => g.value === searchParams.get('group'))
+  const effectivePageSize = groupOption ? 100 : pageSize
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   const queryParams = useMemo(() => {
-    const params: Record<string, string | number | boolean> = { page, page_size: pageSize, ordering }
+    const params: Record<string, string | number | boolean> = {
+      page, page_size: effectivePageSize, ordering: groupOption ? `${groupOption.order},${ordering}` : ordering,
+    }
     if (!filterParams.starred && !filterParams.shared_with_me) {
       PASS_THROUGH.forEach((key) => {
         const value = searchParams.get(key)
@@ -104,10 +112,10 @@ function FileBrowserInner({
     }
     Object.entries(filterParams).forEach(([k, v]) => { if (v) params[k] = v })
     return params
-  }, [page, ordering, pageSize, searchParams, filterParams])
+  }, [page, ordering, effectivePageSize, groupOption, searchParams, filterParams])
 
   const { records, count, loading, refresh } = useRecords(queryParams)
-  const totalPages = Math.max(1, Math.ceil(count / pageSize))
+  const totalPages = Math.max(1, Math.ceil(count / effectivePageSize))
   const paneOpen = driveMode && infoPaneOpen && wide
 
   useEffect(() => {
@@ -143,6 +151,20 @@ function FileBrowserInner({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [infoPaneOpen, setInfoPaneOpen])
+
+  const setGroup = (value: string) => {
+    const p = new URLSearchParams(searchParams)
+    if (value) p.set('group', value); else p.delete('group')
+    p.delete('page')
+    setSearchParams(p, { replace: true })
+    setCollapsed(new Set())
+  }
+
+  const toggleGroup = (label: string) => setCollapsed((prev) => {
+    const next = new Set(prev)
+    if (next.has(label)) next.delete(label); else next.add(label)
+    return next
+  })
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -228,6 +250,44 @@ function FileBrowserInner({
   const paneRecord = records.find((r) => r.id === focusedId) ?? single
   const selecting = selected.size > 0
 
+  const groups = groupOption ? groupRecords(records, groupOption) : null
+
+  const groupHeader = (label: string, count: number) => (
+    <button type="button" className="drive-group-header" onClick={() => toggleGroup(label)} aria-expanded={!collapsed.has(label)}>
+      {collapsed.has(label) ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+      <span className="truncate">{label}</span>
+      <span className="ms-1 rounded-full bg-[var(--surface-sunken)] px-2 py-0.5 text-[11px] font-normal tabular-nums text-muted">{count}</span>
+    </button>
+  )
+
+  const gridCards = (rows: RecordListItem[]) => rows.map((record) => (
+    <RecordGridCard
+      key={record.id}
+      record={record}
+      selected={selected.has(record.id)}
+      focused={paneRecord?.id === record.id}
+      enableBulk={enableBulk}
+      paneOpen={paneOpen}
+      onToggleSelect={toggleSelect}
+      onFocusRecord={setFocusedId}
+      onContextMenu={openContextMenu}
+    />
+  ))
+
+  const listRows = (rows: RecordListItem[]) => rows.map((record) => (
+    <RecordRow
+      key={record.id}
+      record={record}
+      variant="drive-list"
+      enableBulk={enableBulk}
+      selected={selected.has(record.id)}
+      focused={paneRecord?.id === record.id}
+      onToggleSelect={toggleSelect}
+      onFocusRecord={setFocusedId}
+      onContextMenu={openContextMenu}
+    />
+  ))
+
   const listBody = loading ? (
     <div className="p-6 space-y-3">
       {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -246,21 +306,18 @@ function FileBrowserInner({
       {enableBulk && canDelete && <Link to="/upload" className="btn-primary btn-sm mt-4">Upload</Link>}
     </div>
   ) : viewMode === 'grid' ? (
-    <div className="drive-file-grid">
-      {records.map((record) => (
-        <RecordGridCard
-          key={record.id}
-          record={record}
-          selected={selected.has(record.id)}
-          focused={paneRecord?.id === record.id}
-          enableBulk={enableBulk}
-          paneOpen={paneOpen}
-          onToggleSelect={toggleSelect}
-          onFocusRecord={setFocusedId}
-          onContextMenu={openContextMenu}
-        />
-      ))}
-    </div>
+    groups ? (
+      <div>
+        {groups.map((g) => (
+          <section key={g.label}>
+            {groupHeader(g.label, g.rows.length)}
+            {!collapsed.has(g.label) && <div className="drive-file-grid">{gridCards(g.rows)}</div>}
+          </section>
+        ))}
+      </div>
+    ) : (
+      <div className="drive-file-grid">{gridCards(records)}</div>
+    )
   ) : driveMode ? (
     <>
       {!selecting && (
@@ -273,19 +330,14 @@ function FileBrowserInner({
           onSort={sortBy}
         />
       )}
-      {records.map((record) => (
-        <RecordRow
-          key={record.id}
-          record={record}
-          variant="drive-list"
-          enableBulk={enableBulk}
-          selected={selected.has(record.id)}
-          focused={paneRecord?.id === record.id}
-          onToggleSelect={toggleSelect}
-          onFocusRecord={setFocusedId}
-          onContextMenu={openContextMenu}
-        />
-      ))}
+      {groups
+        ? groups.map((g) => (
+          <section key={g.label}>
+            {groupHeader(g.label, g.rows.length)}
+            {!collapsed.has(g.label) && listRows(g.rows)}
+          </section>
+        ))
+        : listRows(records)}
     </>
   ) : (
     <div className="panel p-0 overflow-x-auto">
@@ -331,7 +383,7 @@ function FileBrowserInner({
         viewControl={
           <>
             <PinButton defaultLabel={lastCrumb} />
-            <ViewSortMenu ordering={ordering} onOrderingChange={setOrdering} />
+            <ViewSortMenu ordering={ordering} onOrderingChange={setOrdering} group={groupOption?.value ?? ''} onGroupChange={setGroup} />
           </>
         }
       />

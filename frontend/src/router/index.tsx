@@ -23,6 +23,10 @@ import WorkflowTemplates from '@/pages/workflows/WorkflowTemplates'
 import SearchResults from '@/pages/search/SearchResults'
 import AskArchive from '@/pages/ai/AskArchive'
 import RecycleBin from '@/pages/documents/RecycleBin'
+import AdvancedSearch from '@/pages/search/AdvancedSearch'
+import TemplatesAdmin from '@/pages/admin/TemplatesAdmin'
+import AccessRulesAdmin from '@/pages/admin/AccessRulesAdmin'
+import MetadataAdmin from '@/pages/admin/MetadataAdmin'
 import AiReviewQueue from '@/pages/ai/AiReviewQueue'
 import LegalHolds from '@/pages/compliance/LegalHolds'
 import DestructionScheduling from '@/pages/compliance/DestructionScheduling'
@@ -57,6 +61,7 @@ export default function AppRouter() {
 
           <Route path="/" element={<DocumentsHome />} />
           <Route path="/search" element={<SearchResults />} />
+          <Route path="/search/advanced" element={<AdvancedSearch />} />
           <Route path="/ask" element={<AskArchive />} />
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
@@ -96,6 +101,9 @@ export default function AppRouter() {
 
           <Route element={<RequireRole roles={ADMIN} />}>
             <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/templates" element={<TemplatesAdmin />} />
+            <Route path="/admin/access-rules" element={<AccessRulesAdmin />} />
+            <Route path="/admin/metadata" element={<MetadataAdmin />} />
             <Route path="/admin/health" element={<SystemHealth />} />
             <Route path="/admin/backups" element={<BackupSettings />} />
             <Route path="/admin/microsoft365" element={<Microsoft365Settings />} />

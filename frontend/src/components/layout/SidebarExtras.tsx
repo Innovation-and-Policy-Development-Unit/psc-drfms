@@ -43,15 +43,16 @@ export function QuickAccess() {
             >
               <Pin size={14} className="shrink-0" />
               <span className="truncate">{p.label}</span>
+              {!p.own && <span className="ms-auto shrink-0 rounded bg-gray-100 px-1.5 text-[9px] font-medium uppercase tracking-wide text-gray-500 dark:bg-white/10" title={`Shared by ${p.ownerName}`}>shared</span>}
             </NavLink>
-            <button
+            {p.own && <button
               type="button"
               onClick={() => remove(p)}
               aria-label={`Remove ${p.label} from Quick access`}
               className="absolute end-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 opacity-0 hover:bg-gray-200 hover:text-slate-700 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-white/10"
             >
               <X size={12} />
-            </button>
+            </button>}
           </li>
         ))}
       </ul>

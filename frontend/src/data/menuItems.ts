@@ -3,6 +3,7 @@ import {
   Search, Shield, Users, BarChart3, Settings,
   Lock, Trash2, Eye, ClipboardList, AlertTriangle, CheckCircle,
   Activity, Link, Clock, Star, Inbox, Tag, HardDrive, Cloud, Sparkles, ClipboardCheck,
+  SlidersHorizontal, LayoutTemplate, KeyRound, ListChecks,
   type LucideIcon,
 } from 'lucide-react'
 import type { UserRole } from '@/types/api'
@@ -55,6 +56,7 @@ const menuItems: MenuGroup[] = [
       { label: 'Shared with me', icon: Users, path: '/shared-with-me' },
       { label: 'Tags', icon: Tag, path: '/tags' },
       { label: 'Search', icon: Search, path: '/search' },
+      { label: 'Advanced search', icon: SlidersHorizontal, path: '/search/advanced' },
       { label: 'Ask AI', icon: Sparkles, path: '/ask' },
       { label: 'Recycle bin', icon: Trash2, path: '/bin', roles: OFFICER },
     ],
@@ -98,6 +100,9 @@ const menuItems: MenuGroup[] = [
         label: 'Administration', icon: Settings, roles: ADMIN,
         children: [
           { label: 'Users', icon: Users, path: '/admin/users', roles: ADMIN },
+          { label: 'Document templates', icon: LayoutTemplate, path: '/admin/templates', roles: ADMIN },
+          { label: 'Access rules', icon: KeyRound, path: '/admin/access-rules', roles: ADMIN },
+          { label: 'Metadata rules', icon: ListChecks, path: '/admin/metadata', roles: ADMIN },
           { label: 'System Health', icon: Activity, path: '/admin/health', roles: ADMIN },
           { label: 'Backup', icon: HardDrive, path: '/admin/backups', roles: ADMIN },
           { label: 'Microsoft 365', icon: Cloud, path: '/admin/microsoft365', roles: ADMIN },

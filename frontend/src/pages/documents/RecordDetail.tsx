@@ -21,6 +21,10 @@ import SimilarRecords from '@/components/record/SimilarRecords'
 import TagsEditor from '@/components/record/TagsEditor'
 import PresenceAvatars from '@/components/record/PresenceAvatars'
 import ActivityPanel from '@/components/record/ActivityPanel'
+import RelatedRecordsPanel from '@/components/record/RelatedRecordsPanel'
+import AttachmentsPanel from '@/components/record/AttachmentsPanel'
+import AssignmentsPanel from '@/components/record/AssignmentsPanel'
+import MetadataCard from '@/components/record/MetadataCard'
 import { Panel } from '@/components/ui/Panel'
 import { Button } from '@/components/ui/Button'
 import { ConfirmPopover, anchorFromEvent, type ConfirmAnchor } from '@/components/ui/ConfirmPopover'
@@ -31,6 +35,9 @@ import { useTransfers } from '@/context/TransferContext'
 const TABS = [
   { id: 'preview', label: 'Preview' },
   { id: 'versions', label: 'Versions' },
+  { id: 'files', label: 'Attachments' },
+  { id: 'related', label: 'Related' },
+  { id: 'tasks', label: 'Assignments' },
   { id: 'comments', label: 'Comments' },
   { id: 'share', label: 'Share' },
   { id: 'access', label: 'Access' },
@@ -228,6 +235,8 @@ export default function RecordDetail() {
                 className={clsx('section-nav-item', tab === tid && 'active')}
               >
                 {tabLabel}
+                {tid === 'files' && !!record.attachmentCount && <span className="ms-1.5 rounded-full bg-[var(--surface-sunken)] px-1.5 text-[10px] tabular-nums">{record.attachmentCount}</span>}
+                {tid === 'related' && !!record.relatedRecords?.length && <span className="ms-1.5 rounded-full bg-[var(--surface-sunken)] px-1.5 text-[10px] tabular-nums">{record.relatedRecords.length}</span>}
               </button>
             ))}
           </nav>
@@ -274,6 +283,7 @@ export default function RecordDetail() {
                   <DetailField label="Custodian" value={record.custodianName ?? record.custodian_name} />
                   {record.description && <DetailField label="Description" value={record.description} />}
                   <TagsEditor recordId={id} tags={record.tags ?? []} canEdit={canDelete} onChanged={loadRecord} />
+                  <MetadataCard record={record} canEdit={canDelete} onSaved={loadRecord} />
                   <DocumentAiPanel record={record} canEdit={canDelete} onChanged={loadRecord} />
                   <AiSuggestionsPanel record={record} canEdit={canDelete} onApplied={loadRecord} />
                   <SimilarRecords recordId={id} />
@@ -282,6 +292,16 @@ export default function RecordDetail() {
             )}
 
             {tab === 'versions' && <VersionsPanel recordId={id} onVersionChange={loadRecord} />}
+            {tab === 'files' && (
+              <AttachmentsPanel
+                recordId={id}
+                canEdit={canDelete}
+                mainFile={version ? { versionId: version.id, fileName: version.fileName ?? version.file_name ?? 'file', mimeType: version.mimeType ?? version.mime_type } : undefined}
+                onChanged={loadRecord}
+              />
+            )}
+            {tab === 'related' && <RelatedRecordsPanel recordId={id} canEdit={canDelete} onChanged={loadRecord} />}
+            {tab === 'tasks' && <AssignmentsPanel recordId={id} canAssign={canDelete} />}
             {tab === 'comments' && <CommentsPanel recordId={id} />}
             {tab === 'share' && <SharePanel recordId={id} recordTitle={record.title} />}
             {tab === 'access' && <PermissionsPanel recordId={id} />}

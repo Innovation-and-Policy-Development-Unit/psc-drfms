@@ -5,6 +5,7 @@ import clsx from 'clsx'
 import { searchApi, type SearchResponse, type SearchFacetValue } from '@/api'
 import { aiApi, aiErrorMessage } from '@/api/ai'
 import { useAiStatus } from '@/hooks/useAiStatus'
+import { PinButton } from '@/components/drive/PinButton'
 import type { RecordListItem } from '@/types/api'
 import { ClassificationBadge, DocumentTypeBadge, DOC_TYPE_LABELS } from '@/lib/recordBadges'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -127,7 +128,11 @@ export default function SearchResults() {
   return (
     <div className="mx-auto w-full max-w-screen-2xl space-y-5 p-4 sm:p-6">
       <div>
-        <h1 className="font-sans text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Search</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-sans text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Search</h1>
+          {hasCriteria && <PinButton defaultLabel={urlQuery ? `Search: ${urlQuery}` : 'Saved search'} />}
+          <Link to="/search/advanced" className="ms-auto text-sm font-medium text-primary-600 hover:underline dark:text-primary-300">Advanced search</Link>
+        </div>
         <p className="mt-1 text-sm text-gray-500">
           Full text across titles, references, descriptions and scanned content. Typos are forgiven.
         </p>

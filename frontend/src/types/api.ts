@@ -101,6 +101,15 @@ export interface RecordVersion {
 }
 
 export interface RecordDetail extends RecordListItem {
+  receivedDate?: string | null
+  physicalFileRef?: string
+  physicalLocation?: string
+  /** Extra fields defined for this document type, e.g. { amount: '1500000' } */
+  customFields?: Record<string, string>
+  /** Required fields (core or custom) still empty, per this document type's profile */
+  metadataMissing?: Array<{ key: string; label: string; custom: boolean }>
+  attachmentCount?: number
+  relatedRecords?: Array<{ id: string; referenceNumber: string; title: string; label: string }>
   reference_number?: string
   description?: string
   latestVersion?: RecordVersion

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ChevronDown, FileSpreadsheet, FileText, FolderPlus, FolderUp, Plus, Presentation, Upload } from 'lucide-react'
+import { ChevronDown, FileSpreadsheet, FileText, FolderPlus, FolderUp, LayoutTemplate, Plus, Presentation, Upload } from 'lucide-react'
 import clsx from 'clsx'
 import { useDriveUI } from '@/context/DriveUIContext'
 import type { NewDocumentKind } from '@/api/drive'
 import NewDocumentDialog from './NewDocumentDialog'
 import NewFolderDialog from './NewFolderDialog'
+import TemplatePickerDialog from './TemplatePickerDialog'
 
 interface Props {
   /** Series to file a new document under; defaults to the series currently being browsed. */
@@ -28,6 +29,7 @@ export default function NewMenu({ recordSeries, compact = false, className }: Pr
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState<NewDocumentKind | null>(null)
   const [creatingFolder, setCreatingFolder] = useState(false)
+  const [fromTemplate, setFromTemplate] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
 
@@ -77,6 +79,10 @@ export default function NewMenu({ recordSeries, compact = false, className }: Pr
             <FolderUp size={16} className="shrink-0 text-muted" /> Upload folder
           </button>
           <div className="my-1 border-t border-[var(--border-default)]" />
+          <button type="button" role="menuitem" className="flex w-full items-center gap-2.5 px-3 py-2 text-start hover:bg-[var(--surface-sunken)]"
+            onClick={() => { setOpen(false); setFromTemplate(true) }}>
+            <LayoutTemplate size={16} className="shrink-0 text-primary-500" /> From template…
+          </button>
           {DOCS.map(({ kind, label, Icon, tone }) => (
             <button key={kind} type="button" role="menuitem" className="flex w-full items-center gap-2.5 px-3 py-2 text-start hover:bg-[var(--surface-sunken)]"
               onClick={() => { setOpen(false); setCreating(kind) }}>
@@ -97,6 +103,7 @@ export default function NewMenu({ recordSeries, compact = false, className }: Pr
         tabIndex={-1}
       />
 
+      {fromTemplate && <TemplatePickerDialog recordSeries={series} onClose={() => setFromTemplate(false)} />}
       {creatingFolder && <NewFolderDialog parent={series} onClose={() => setCreatingFolder(false)} />}
       {creating && <NewDocumentDialog kind={creating} recordSeries={series} onClose={() => setCreating(null)} />}
     </div>

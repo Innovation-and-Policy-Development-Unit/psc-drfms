@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Pin, PinOff } from 'lucide-react'
-import { driveApi, PINS_CHANGED_EVENT, type PinnedView } from '@/api/drive'
+import { driveApi, PINS_CHANGED_EVENT, type PinnedView, type PinSharing } from '@/api/drive'
+import { useAuth } from '@/context/AuthContext'
 import { aiErrorMessage } from '@/api/ai'
 
 /** Pins the current view (including its filters) to the sidebar's Quick access. */
@@ -12,13 +13,15 @@ export function PinButton({ defaultLabel }: { defaultLabel: string }) {
   const query = params.toString()
   const target = location.pathname + (query ? `?${query}` : '')
 
+  const { user } = useAuth()
   const [pins, setPins] = useState<PinnedView[]>([])
+  const [sharing, setSharing] = useState<PinSharing>('')
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState(defaultLabel)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const ref = useRef<HTMLDivElement>(null)
-  const pinned = pins.find((p) => p.target === target)
+  const pinned = pins.find((p) => p.target === target && p.own)
 
   const load = useCallback(() => {
     driveApi.pins().then(({ data }) => setPins(data)).catch(() => setPins([]))
@@ -45,7 +48,7 @@ export function PinButton({ defaultLabel }: { defaultLabel: string }) {
     setBusy(true)
     setError('')
     try {
-      await driveApi.pin(label.trim() || defaultLabel, target)
+      await driveApi.pin(label.trim() || defaultLabel, target, sharing)
       setOpen(false)
       changed()
     } catch (err) { setError(aiErrorMessage(err)) } finally { setBusy(false) }
@@ -74,6 +77,12 @@ export function PinButton({ defaultLabel }: { defaultLabel: string }) {
         <form onSubmit={save} className="absolute end-0 top-full z-40 mt-1 w-64 space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-raised)] p-3 shadow-lg">
           <label className="block text-xs font-medium text-muted" htmlFor="pin-label">Name in Quick access</label>
           <input id="pin-label" autoFocus value={label} onChange={(e) => setLabel(e.target.value)} maxLength={80} className="input w-full" />
+          <label className="block text-xs font-medium text-muted" htmlFor="pin-share">Who can see it</label>
+          <select id="pin-share" value={sharing} onChange={(e) => setSharing(e.target.value as PinSharing)} className="input w-full">
+            <option value="">Only me</option>
+            {user?.department != null && <option value="department">My department</option>}
+            {user?.role === 'administrator' && <option value="all">Everyone</option>}
+          </select>
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-ghost btn-sm" onClick={() => setOpen(false)}>Cancel</button>

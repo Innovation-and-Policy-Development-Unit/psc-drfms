@@ -476,3 +476,14 @@
     align-self: flex-start;
   }
 }
+
+/* Grouped file lists */
+@layer components {
+  .drive-group-header {
+    @apply sticky top-0 z-[5] flex w-full items-center gap-1.5 border-b px-4 py-2 text-start text-xs font-semibold uppercase tracking-wide;
+    color: var(--text-secondary);
+    background: var(--surface-sunken);
+    border-color: var(--border-default);
+  }
+  .drive-group-header:hover { color: var(--text-primary); }
+}

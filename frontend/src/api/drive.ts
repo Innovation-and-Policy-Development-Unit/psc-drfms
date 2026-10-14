@@ -1,7 +1,16 @@
 import client from './client'
 
 export interface StorageUsage { usedBytes: number; quotaBytes: number | null; recordCount: number }
-export interface PinnedView { id: number; label: string; target: string }
+export type PinSharing = '' | 'department' | 'all'
+export interface PinnedView {
+  id: number
+  label: string
+  target: string
+  sharedWith: PinSharing
+  /** False for a view a colleague shared with you. */
+  own: boolean
+  ownerName: string
+}
 export type NewDocumentKind = 'word' | 'excel' | 'powerpoint'
 export interface RecordSeriesItem {
   id: number
@@ -31,7 +40,8 @@ export interface RecordsDeletedDetail { ids: string[]; title?: string }
 export const driveApi = {
   storage: () => client.get<StorageUsage>('/records/storage/'),
   pins: () => client.get<PinnedView[]>('/records/pins/'),
-  pin: (label: string, target: string) => client.post<PinnedView>('/records/pins/', { label, target }),
+  pin: (label: string, target: string, sharedWith: PinSharing = '') => client.post<PinnedView>('/records/pins/', { label, target, sharedWith }),
+  updatePin: (id: number, body: { label?: string; sharedWith?: PinSharing }) => client.patch<PinnedView>(`/records/pins/${id}/`, body),
   unpin: (id: number) => client.delete(`/records/pins/${id}/`),
   newDocument: (kind: NewDocumentKind, title: string, recordSeries?: string | number) =>
     client.post<{ id: string; referenceNumber: string }>('/records/new-document/', {
