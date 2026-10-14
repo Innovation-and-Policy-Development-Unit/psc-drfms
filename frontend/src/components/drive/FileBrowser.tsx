@@ -2,6 +2,7 @@ import { memo, useState, useMemo, useEffect, useCallback, type ReactNode } from 
 import { FolderOpen } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
+import clsx from 'clsx'
 import { useRecords } from '@/hooks/useRecords'
 import { useAuth } from '@/context/AuthContext'
 import { useDriveUI } from '@/context/DriveUIContext'
@@ -11,26 +12,42 @@ import { RecordGridCard } from '@/components/documents/RecordGridCard'
 import { DriveToolbar } from '@/components/drive/DriveToolbar'
 import { ResizableDriveListHeader } from '@/components/drive/ResizableDriveList'
 import { ContextMenu } from '@/components/drive/ContextMenu'
-import { BulkActionBar } from '@/components/drive/BulkActionBar'
+import { SelectionBar } from '@/components/drive/SelectionBar'
+import { DetailsPane } from '@/components/drive/DetailsPane'
+import { ViewSortMenu, SORT_FIELDS } from '@/components/drive/ViewSortMenu'
+import { PinButton } from '@/components/drive/PinButton'
+import MoveDialog from '@/components/drive/MoveDialog'
+import ShareDialog from '@/components/record/ShareDialog'
 import { Button } from '@/components/ui/Button'
 import { ConfirmPopover, anchorFromEvent, type ConfirmAnchor } from '@/components/ui/ConfirmPopover'
 import { Skeleton } from '@/components/ui/Skeleton'
 import {
   buildRecordContextMenuItems,
   copyRecordLink,
+  recordAbsoluteUrl,
   recordDetailPath,
 } from '@/lib/driveRecordActions'
 import * as recordsApi from '@/api/records'
 import { useTransfers } from '@/context/TransferContext'
 import type { BreadcrumbItem, RecordListItem } from '@/types/api'
 
-const SORT_OPTIONS = [
-  { value: '-updated_at', label: 'Last modified' },
-  { value: 'title', label: 'Name A–Z' },
-  { value: '-title', label: 'Name Z–A' },
-  { value: '-created_at', label: 'Date added' },
-  { value: 'reference_number', label: 'Reference' },
-]
+/** URL parameters the list passes straight to the records API. */
+const PASS_THROUGH = [
+  'record_series', 'document_type', 'tag', 'originating_ministry', 'custodian',
+  'classification_level', 'year', 'file_type',
+] as const
+
+function useWideScreen() {
+  const query = '(min-width: 1024px)'
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const on = () => setWide(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return wide
+}
 
 interface FileBrowserProps {
   title?: string
@@ -59,12 +76,16 @@ function FileBrowserInner({
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [focusedId, setFocusedId] = useState<string | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; record: RecordListItem } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<{ records: RecordListItem[]; anchor: ConfirmAnchor } | null>(null)
   const [deleteError, setDeleteError] = useState('')
+  const [moving, setMoving] = useState<string[] | null>(null)
+  const [sharing, setSharing] = useState<RecordListItem | null>(null)
   const { user } = useAuth()
-  const { viewMode, setStatusMessage, openUploadDialog } = useDriveUI()
+  const { viewMode, setStatusMessage, infoPaneOpen, setInfoPaneOpen } = useDriveUI()
   const { queueDownload } = useTransfers()
+  const wide = useWideScreen()
 
   const canDelete = ['records_officer', 'director', 'commissioner', 'administrator']
     .includes(user?.role ?? '')
@@ -75,12 +96,10 @@ function FileBrowserInner({
   const queryParams = useMemo(() => {
     const params: Record<string, string | number | boolean> = { page, page_size: pageSize, ordering }
     if (!filterParams.starred && !filterParams.shared_with_me) {
-      const series = searchParams.get('record_series')
-      const docType = searchParams.get('document_type')
-      const tag = searchParams.get('tag')
-      if (series) params.record_series = series
-      if (docType) params.document_type = docType
-      if (tag) params.tag = tag
+      PASS_THROUGH.forEach((key) => {
+        const value = searchParams.get(key)
+        if (value) params[key] = value
+      })
     }
     Object.entries(filterParams).forEach(([k, v]) => { if (v) params[k] = v })
     return params
@@ -88,12 +107,35 @@ function FileBrowserInner({
 
   const { records, count, loading, refresh } = useRecords(queryParams)
   const totalPages = Math.max(1, Math.ceil(count / pageSize))
+  const paneOpen = driveMode && infoPaneOpen && wide
 
   useEffect(() => {
     if (!loading) {
       setStatusMessage(selected.size > 0 ? `${selected.size} selected · ${count} items` : `${count} items`)
     }
   }, [count, loading, selected.size, setStatusMessage])
+
+  // Esc clears the selection, like a file manager
+  useEffect(() => {
+    if (selected.size === 0) return
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (e.key === 'Escape' && !(el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) setSelected(new Set())
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected.size])
+
+  // "I" toggles the details pane
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      const typing = el && (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable)
+      if (e.key.toLowerCase() === 'i' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) setInfoPaneOpen(!infoPaneOpen)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [infoPaneOpen, setInfoPaneOpen])
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -109,11 +151,18 @@ function FileBrowserInner({
     else setSelected(new Set(records.map((r) => r.id)))
   }
 
-  const handleSort = (value: string) => {
+  const setOrdering = (value: string) => {
     const p = new URLSearchParams(searchParams)
     p.set('ordering', value)
     p.set('page', '1')
     setSearchParams(p)
+  }
+
+  /** Header click: same column flips direction, a new column starts in its natural direction. */
+  const sortBy = (field: string) => {
+    const current = ordering.replace(/^-/, '')
+    if (field === current) setOrdering(ordering.startsWith('-') ? field : `-${field}`)
+    else setOrdering(SORT_FIELDS.find((f) => f.field === field)?.startDesc ? `-${field}` : field)
   }
 
   const openContextMenu = (e: React.MouseEvent, record: RecordListItem) => {
@@ -121,18 +170,19 @@ function FileBrowserInner({
     setMenu({ x: e.clientX, y: e.clientY, record })
   }
 
+  const toggleStar = async (record: RecordListItem) => {
+    if (record.isStarred) await recordsApi.unstarRecord(record.id)
+    else await recordsApi.starRecord(record.id)
+    refresh()
+  }
+  const download = (record: RecordListItem) => { void queueDownload(record.id, record.fileName ?? record.title) }
+
   const menuItems = menu
     ? buildRecordContextMenuItems(menu.record, {
         onOpen: () => navigate(recordDetailPath(menu.record.id)),
         onSelect: () => toggleSelect(menu.record.id),
-        onStar: async () => {
-          if (menu.record.isStarred) await recordsApi.unstarRecord(menu.record.id)
-          else await recordsApi.starRecord(menu.record.id)
-          refresh()
-        },
-        onDownload: () => {
-          void queueDownload(menu.record.id, menu.record.fileName ?? menu.record.title)
-        },
+        onStar: () => toggleStar(menu.record),
+        onDownload: () => download(menu.record),
         onCopyLink: () => copyRecordLink(menu.record.id),
         onClearSelection: () => setSelected(new Set()),
         hasSelection: selected.size > 0,
@@ -161,6 +211,10 @@ function FileBrowserInner({
   }
 
   const toolbarCrumbs = breadcrumbs.length > 0 ? breadcrumbs : title ? [{ label: title }] : []
+  const selectedRecords = records.filter((r) => selected.has(r.id))
+  const single = selectedRecords.length === 1 ? selectedRecords[0] : undefined
+  const paneRecord = records.find((r) => r.id === focusedId) ?? single
+  const selecting = selected.size > 0
 
   const listBody = loading ? (
     <div className="p-6 space-y-3">
@@ -177,7 +231,7 @@ function FileBrowserInner({
       <p className="text-sm text-muted mt-1 max-w-sm">
         {subtitle || 'Upload a document or adjust your filters.'}
       </p>
-      {enableBulk && <Link to="/upload" className="btn-primary btn-sm mt-4">Upload</Link>}
+      {enableBulk && canDelete && <Link to="/upload" className="btn-primary btn-sm mt-4">Upload</Link>}
     </div>
   ) : viewMode === 'grid' ? (
     <div className="drive-file-grid">
@@ -186,20 +240,27 @@ function FileBrowserInner({
           key={record.id}
           record={record}
           selected={selected.has(record.id)}
+          focused={paneRecord?.id === record.id}
           enableBulk={enableBulk}
+          paneOpen={paneOpen}
           onToggleSelect={toggleSelect}
+          onFocusRecord={setFocusedId}
           onContextMenu={openContextMenu}
         />
       ))}
     </div>
   ) : driveMode ? (
     <>
-      <ResizableDriveListHeader
-        enableBulk={enableBulk}
-        allSelected={records.length > 0 && selected.size === records.length}
-        someSelected={selected.size > 0}
-        onToggleAll={toggleAll}
-      />
+      {!selecting && (
+        <ResizableDriveListHeader
+          enableBulk={enableBulk}
+          allSelected={records.length > 0 && selected.size === records.length}
+          someSelected={selecting}
+          onToggleAll={toggleAll}
+          ordering={ordering}
+          onSort={sortBy}
+        />
+      )}
       {records.map((record) => (
         <RecordRow
           key={record.id}
@@ -207,7 +268,9 @@ function FileBrowserInner({
           variant="drive-list"
           enableBulk={enableBulk}
           selected={selected.has(record.id)}
+          focused={paneRecord?.id === record.id}
           onToggleSelect={toggleSelect}
+          onFocusRecord={setFocusedId}
           onContextMenu={openContextMenu}
         />
       ))}
@@ -246,40 +309,43 @@ function FileBrowserInner({
     return <div className="space-y-4">{listBody}</div>
   }
 
-  const firstSelected = records.find((r) => selected.has(r.id))
+  const lastCrumb = toolbarCrumbs[toolbarCrumbs.length - 1]?.label ?? 'Saved view'
 
   return (
     <div className="flex flex-col min-h-full">
       <DriveToolbar
         breadcrumbs={toolbarCrumbs}
-        sortValue={ordering}
-        sortOptions={SORT_OPTIONS}
-        onSortChange={handleSort}
         onRefresh={refresh}
-        actions={
-          <button type="button" className="btn-primary btn-sm rounded-full px-4" onClick={() => openUploadDialog()}>
-            Upload
-          </button>
+        viewControl={
+          <>
+            <PinButton defaultLabel={lastCrumb} />
+            <ViewSortMenu ordering={ordering} onOrderingChange={setOrdering} />
+          </>
         }
       />
 
       {header}
 
-      <BulkActionBar
-        count={selected.size}
-        onClear={() => setSelected(new Set())}
-        onOpen={firstSelected ? () => navigate(recordDetailPath(firstSelected.id)) : undefined}
-        onStar={selected.size > 0 ? async () => {
-          await Promise.all([...selected].map((id) => recordsApi.starRecord(id)))
-          refresh()
-        } : undefined}
-        onCopyLinks={selected.size > 0 ? async () => {
-          await navigator.clipboard.writeText([...selected].map((id) => `${window.location.origin}${recordDetailPath(id)}`).join('\n'))
-        } : undefined}
-        onDelete={canDelete && selected.size > 0
-          ? (e) => setConfirmDelete({ records: records.filter((r) => selected.has(r.id)), anchor: anchorFromEvent(e) })
-          : undefined}
-      />
+      {selecting && (
+        <SelectionBar
+          count={selected.size}
+          onClear={() => setSelected(new Set())}
+          onOpen={single ? () => navigate(recordDetailPath(single.id)) : undefined}
+          onShare={single && canDelete ? () => setSharing(single) : undefined}
+          onCopyLinks={async () => {
+            await navigator.clipboard.writeText(selectedRecords.map((r) => recordAbsoluteUrl(r.id)).join('\n'))
+          }}
+          onDownload={() => selectedRecords.forEach(download)}
+          onMove={canDelete ? () => setMoving([...selected]) : undefined}
+          onStar={async () => {
+            await Promise.all(selectedRecords.filter((r) => !r.isStarred).map((r) => recordsApi.starRecord(r.id)))
+            refresh()
+          }}
+          onDelete={canDelete
+            ? (e) => setConfirmDelete({ records: selectedRecords, anchor: anchorFromEvent(e) })
+            : undefined}
+        />
+      )}
 
       {deleteError && (
         <div className="alert-danger mx-4 mt-3">
@@ -300,7 +366,21 @@ function FileBrowserInner({
         onCancel={() => setConfirmDelete(null)}
       />
 
-      <div className="flex-1 min-h-0">{listBody}</div>
+      <div className="flex min-h-0 flex-1">
+        <div className={clsx('min-w-0 flex-1', viewMode === 'compact' && 'drive-compact', selecting && 'drive-selecting')}>
+          {listBody}
+        </div>
+        {paneOpen && (
+          <DetailsPane
+            record={paneRecord}
+            selectedCount={selected.size}
+            onClose={() => setInfoPaneOpen(false)}
+            onStar={toggleStar}
+            onDownload={download}
+            onCopyLink={(r) => copyRecordLink(r.id)}
+          />
+        )}
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-registry text-sm">
@@ -324,6 +404,15 @@ function FileBrowserInner({
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
       )}
+
+      {moving && (
+        <MoveDialog
+          recordIds={moving}
+          onClose={() => setMoving(null)}
+          onMoved={() => { setMoving(null); setSelected(new Set()); refresh() }}
+        />
+      )}
+      <ShareDialog open={!!sharing} onClose={() => setSharing(null)} recordId={sharing?.id} recordTitle={sharing?.title} />
     </div>
   )
 }

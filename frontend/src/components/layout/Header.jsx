@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { OPEN_PALETTE_EVENT } from "./CommandPalette"
 import Logo from '../shared/Logo'
+import NewMenu from '../drive/NewMenu'
 
 // TailAdmin header action button: circular, bordered
 const iconBtn = 'relative flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white'
@@ -24,6 +25,8 @@ const breadcrumbMap = {
   '/shared-with-me': ['Documents', 'Shared with me'],
   '/recent': ['Documents', 'Recent'],
   '/search': ['Search'],
+  '/ask': ['Ask AI'],
+  '/ai-review': ['Work', 'AI review'],
   '/inbox': ['Inbox'],
   '/tags': ['Workspace', 'Tags'],
   '/workflows': ['Workflows'],
@@ -205,15 +208,7 @@ export default function Header({ onMenuClick, collapsed = false, onToggleCollaps
         <Search size={18} />
       </button>
 
-      {canUpload && (
-        <button
-          type="button"
-          onClick={() => openUploadDialog()}
-          className="hidden sm:inline-flex items-center gap-2 h-10 px-4 rounded-full bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium shadow-theme-xs transition-colors"
-        >
-          <Upload size={16} /> Upload
-        </button>
-      )}
+      {canUpload && <NewMenu className="hidden sm:block" />}
 
       {/* Dark mode */}
       <button

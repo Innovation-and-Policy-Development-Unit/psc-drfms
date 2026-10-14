@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
-  Search, FileText, CornerDownLeft, Upload, Moon, Sun, ArrowRight, Loader2, Palette,
+  Search, FileText, CornerDownLeft, Upload, Moon, Sun, ArrowRight, Loader2, Palette, Sparkles,
   type LucideIcon,
 } from 'lucide-react'
 import { searchApi, type SearchSuggestion } from '@/api'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { useDriveUI } from '@/context/DriveUIContext'
-import menuItems from '@/data/menuItems'
+import menuItems, { flattenItems, visibleItems } from '@/data/menuItems'
 import { DOC_TYPE_LABELS } from '@/lib/recordBadges'
+import { useAiStatus } from '@/hooks/useAiStatus'
 
 const OFFICER = ['records_officer', 'director', 'commissioner', 'administrator']
 
@@ -32,6 +33,7 @@ export default function CommandPalette() {
   const { user } = useAuth()
   const { isDark, toggleDark, openSettingsPanel, locked } = useTheme()
   const { openUploadDialog } = useDriveUI()
+  const aiStatus = useAiStatus()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [records, setRecords] = useState<SearchSuggestion[]>([])
@@ -118,25 +120,33 @@ export default function CommandPalette() {
         icon: Search,
         run: () => navigate(`/search?q=${encodeURIComponent(query.trim())}`),
       })
+      if (aiStatus?.enabled && q.length >= 4 && q.includes(' ')) {
+        out.push({
+          id: 'ask-ai',
+          group: 'Actions',
+          label: `Ask AI: “${query.trim()}”`,
+          hint: 'Answer from the records you can access, with sources',
+          icon: Sparkles,
+          run: () => navigate(`/ask?q=${encodeURIComponent(query.trim())}`),
+        })
+      }
     }
 
     menuItems
       .filter((g) => !g.roles || g.roles.includes(role))
       .forEach((g) =>
-        g.items
-          .filter((i) => !i.roles || i.roles.includes(role))
-          .forEach((i) => {
-            if (!i.path) return
-            if (q && !`${i.label} ${g.group}`.toLowerCase().includes(q)) return
-            out.push({
-              id: `nav-${i.path}`,
-              group: 'Go to',
-              label: i.label,
-              hint: g.group,
-              icon: i.icon,
-              run: () => navigate(i.path as string),
-            })
-          }),
+        flattenItems(visibleItems(g.items, role)).forEach((i) => {
+          if (i.type !== 'link') return
+          if (q && !`${i.label} ${g.group}`.toLowerCase().includes(q)) return
+          out.push({
+            id: `nav-${i.path}`,
+            group: 'Go to',
+            label: i.label,
+            hint: g.group,
+            icon: i.icon,
+            run: () => navigate(i.path),
+          })
+        }),
       )
 
     const actions: Item[] = []
@@ -162,7 +172,7 @@ export default function CommandPalette() {
     out.push(...actions.filter((a) => !q || a.label.toLowerCase().includes(q)))
 
     return out
-  }, [query, records, role, canUpload, isDark, locked, navigate, openUploadDialog, toggleDark, openSettingsPanel])
+  }, [query, records, role, canUpload, isDark, locked, aiStatus, navigate, openUploadDialog, toggleDark, openSettingsPanel])
 
   useEffect(() => { setActive(0) }, [query, records.length])
 

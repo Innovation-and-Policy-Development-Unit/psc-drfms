@@ -1,10 +1,13 @@
-import { memo } from 'react'
+import { Fragment, memo } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import type { RecordListItem } from '@/types/api'
 import { Badge } from '@/components/ui/Badge'
 import { ClassificationBadge, DocumentTypeBadge } from '@/lib/recordBadges'
+import { Users } from 'lucide-react'
 import { useDriveListColumns } from '@/context/ResizableColumnsContext'
+import type { ColumnKey } from '@/hooks/useResizableColumns'
+import { RetentionText, formatDate, statusLabels } from '@/lib/driveFormat'
 import { formatFileSize, getFileTypeInfo } from '@/utils/fileType'
 
 interface RecordRowProps {
@@ -12,23 +15,43 @@ interface RecordRowProps {
   variant?: 'table' | 'list' | 'drive-list'
   enableBulk?: boolean
   selected?: boolean
+  /** The row whose details are showing in the side pane. */
+  focused?: boolean
   onToggleSelect?: (id: string) => void
+  onFocusRecord?: (id: string) => void
   onContextMenu?: (e: React.MouseEvent, record: RecordListItem) => void
   showSnippet?: boolean
 }
 
 function DriveListRow(props: RecordRowProps) {
-  const { record, enableBulk, selected, onToggleSelect, onContextMenu } = props
-  const { gridTemplate } = useDriveListColumns()
+  const { record, enableBulk, selected, focused, onToggleSelect, onFocusRecord, onContextMenu } = props
+  const { gridTemplate, visibleColumns } = useDriveListColumns()
   const ref = record.referenceNumber ?? (record as { reference_number?: string }).reference_number ?? ''
   const updated = record.updatedAt ?? (record as { updated_at?: string }).updated_at
   const typeInfo = getFileTypeInfo(record.mimeType, record.fileName)
   const Icon = typeInfo.Icon
 
+  const cell = (key: ColumnKey) => {
+    switch (key) {
+      case 'type': return <span className="text-xs capitalize truncate">{typeInfo.label}</span>
+      case 'classification': return <span className="min-w-0"><ClassificationBadge level={record.classificationLevel} /></span>
+      case 'retention': return <RetentionText date={record.retentionDate} />
+      case 'status': return (
+        <span className="flex min-w-0 flex-wrap gap-1">
+          {statusLabels(record).map((s) => <span key={s.text} className={clsx('rounded px-1.5 py-0.5 text-[10px] font-medium', s.cls)}>{s.text}</span>)}
+        </span>
+      )
+      case 'modified': return <span className="text-xs text-muted whitespace-nowrap">{formatDate(updated)}</span>
+      case 'size': return <span className="text-xs text-muted text-end font-mono-ref whitespace-nowrap">{record.fileSize ? formatFileSize(record.fileSize) : '—'}</span>
+      case 'sharing': return <span className="inline-flex items-center gap-1 text-xs text-muted">{record.isShared ? <><Users size={13} /> Shared</> : 'Private'}</span>
+    }
+  }
+
   return (
     <div
-      className={clsx('drive-file-row', enableBulk && 'bulk', selected && 'selected')}
+      className={clsx('drive-file-row', enableBulk && 'bulk', selected && 'selected', focused && 'focused')}
       style={{ gridTemplateColumns: gridTemplate(!!enableBulk) }}
+      onClick={() => onFocusRecord?.(record.id)}
       onContextMenu={(e) => onContextMenu?.(e, record)}
     >
       {enableBulk && (
@@ -36,7 +59,8 @@ function DriveListRow(props: RecordRowProps) {
           type="checkbox"
           checked={selected}
           onChange={() => onToggleSelect?.(record.id)}
-          className="rounded-sm border-registry"
+          onClick={(e) => e.stopPropagation()}
+          className="drive-row-check rounded-sm border-registry"
           aria-label={`Select ${record.title}`}
         />
       )}
@@ -45,19 +69,9 @@ function DriveListRow(props: RecordRowProps) {
       </Link>
       <Link to={`/document/${record.id}`} className="drive-file-name min-w-0">
         <p className="drive-file-name-title">{record.title}</p>
-        <p className="drive-file-name-meta">
-          {ref}
-          {record.isOnLegalHold && ' · HOLD'}
-          {record.isVital && ' · VITAL'}
-        </p>
+        <p className="drive-file-name-meta">{ref}</p>
       </Link>
-      <span className="text-xs capitalize truncate">{typeInfo.label}</span>
-      <span className="text-xs text-muted whitespace-nowrap">
-        {updated ? new Date(updated).toLocaleDateString() : '—'}
-      </span>
-      <span className="text-xs text-muted text-end font-mono-ref whitespace-nowrap">
-        {record.fileSize ? formatFileSize(record.fileSize) : '—'}
-      </span>
+      {visibleColumns.map((c) => <Fragment key={c.key}>{cell(c.key)}</Fragment>)}
     </div>
   )
 }

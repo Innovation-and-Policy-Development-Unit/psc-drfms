@@ -2,6 +2,7 @@ export { default as client, unwrapList } from './client'
 export * as authApi from './auth'
 export * as recordsApi from './records'
 export { aiApi } from './ai'
+export { driveApi } from './drive'
 
 import client from './client'
 import type {
@@ -35,6 +36,7 @@ export interface SearchResponse {
     ministry: SearchFacetValue[]
     recordSeries: Array<SearchFacetValue & { label: string }>
     year: SearchFacetValue[]
+    custodian?: Array<SearchFacetValue & { label: string }>
   }
   didYouMean: string | null
   meaningMatches: number

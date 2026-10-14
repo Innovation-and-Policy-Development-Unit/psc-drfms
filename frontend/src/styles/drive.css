@@ -415,3 +415,64 @@
     background: color-mix(in srgb, var(--brand-primary) 6%, var(--surface-sunken));
   }
 }
+
+/* File browser: selection bar, hover checkboxes, density, tiles with thumbnails, details pane */
+@layer components {
+  .drive-selection-bar {
+    @apply sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-1 border-b px-3 py-1.5;
+    background: color-mix(in srgb, var(--brand-primary) 9%, var(--surface-raised));
+    border-color: var(--border-default);
+  }
+
+  /* Checkboxes stay out of the way until the row is hovered, focused or something is selected */
+  .drive-row-check,
+  .drive-tile-check {
+    @apply transition-opacity;
+    opacity: 0;
+  }
+  .drive-file-row:hover .drive-row-check,
+  .drive-file-tile:hover .drive-tile-check,
+  .drive-row-check:checked,
+  .drive-tile-check:checked,
+  .drive-row-check:focus-visible,
+  .drive-tile-check:focus-visible,
+  .drive-selecting .drive-row-check,
+  .drive-selecting .drive-tile-check {
+    opacity: 1;
+  }
+  @media (hover: none) {
+    .drive-row-check, .drive-tile-check { opacity: 1; }
+  }
+
+  .drive-file-row.focused {
+    background: color-mix(in srgb, var(--brand-primary) 6%, var(--surface-raised));
+    box-shadow: inset 3px 0 0 var(--brand-primary);
+  }
+  .drive-compact .drive-file-row { @apply py-1; }
+  .drive-compact .drive-file-icon { @apply w-7 h-7; }
+  .drive-compact .drive-file-name-meta { @apply hidden; }
+
+  .drive-file-name-title { @apply truncate text-sm font-medium; color: var(--text-primary); }
+  .drive-file-name-meta { @apply truncate text-xs; color: var(--text-muted); }
+
+  /* Tiles */
+  .drive-file-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); @apply gap-3; }
+  .drive-file-tile { @apply items-stretch text-start p-2.5; }
+  .drive-file-tile.focused { border-color: var(--brand-primary); }
+  .drive-tile-check { @apply z-[1] bg-white; }
+  .drive-tile-thumb { @apply mb-2 h-36 w-full overflow-hidden rounded-lg border; border-color: var(--border-default); }
+  .drive-tile-name { @apply line-clamp-2 break-words text-sm font-medium leading-snug; color: var(--text-primary); }
+  .drive-tile-meta { @apply mt-0.5 text-xs; color: var(--text-muted); }
+  .drive-tile-summary { @apply mt-1 line-clamp-2 text-xs leading-snug; color: var(--text-secondary); }
+
+  /* Details pane */
+  .drive-details-pane {
+    @apply hidden w-80 shrink-0 overflow-y-auto border-s lg:block;
+    border-color: var(--border-default);
+    background: var(--surface-raised);
+    max-height: calc(100vh - 8rem);
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+  }
+}

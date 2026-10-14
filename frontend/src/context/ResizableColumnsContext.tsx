@@ -1,11 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { useResizableColumns, type ColumnWidths } from '@/hooks/useResizableColumns'
+import { useResizableColumns } from '@/hooks/useResizableColumns'
 
-interface ResizableColumnsContextValue {
-  widths: ColumnWidths
-  gridTemplate: (bulk: boolean) => string
-  startResize: (column: keyof ColumnWidths, startX: number) => void
-}
+type ResizableColumnsContextValue = ReturnType<typeof useResizableColumns>
 
 const ResizableColumnsContext = createContext<ResizableColumnsContextValue | null>(null)
 

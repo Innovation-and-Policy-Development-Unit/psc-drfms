@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Sparkles, Send, FileText, Cloud, ShieldCheck, RotateCcw, AlertCircle } from 'lucide-react'
 import { aiApi, aiErrorMessage, type AskSource, type ChatMessage } from '@/api/ai'
 import { engineLabel, useAiStatus } from '@/hooks/useAiStatus'
@@ -40,6 +40,8 @@ export default function AskArchive() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
+  const [params, setParams] = useSearchParams()
+  const preset = useRef(params.get('q'))
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [turns, busy])
 
@@ -58,6 +60,16 @@ export default function AskArchive() {
       setError(aiErrorMessage(e))
     } finally { setBusy(false) }
   }
+
+  // Arriving from the search palette ("Ask AI: ...") with ?q= asks straight away, once
+  useEffect(() => {
+    if (!preset.current || !status?.enabled) return
+    const q = preset.current
+    preset.current = null
+    setParams({}, { replace: true })
+    void ask(q)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status])
 
   const off = status !== null && !status.enabled
   const cloud = status?.primary?.external

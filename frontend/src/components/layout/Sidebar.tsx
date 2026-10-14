@@ -5,10 +5,11 @@ import { useTheme } from '@/context/ThemeContext'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 import { ChevronDown, LogOut, Tag } from 'lucide-react'
-import menuItems, { getAllPaths, flattenItems, isGroupActive, isPathActive } from '@/data/menuItems'
+import menuItems, { getAllPaths, flattenItems, isGroupActive, isPathActive, visibleItems } from '@/data/menuItems'
 import Logo from '../shared/Logo'
 import { useSidebarCounts } from '@/hooks/useSidebarCounts'
 import * as recordsApi from '@/api/records'
+import { QuickAccess, StorageMeter } from './SidebarExtras'
 
 
 function CountBadge({ n, dot = false }: { n?: number; dot?: boolean }) {
@@ -61,8 +62,9 @@ function SidebarTags() {
 }
 
 // Collapsed sidebar: one icon per group with tap/click flyout (portal)
-function CollapsedGroupItem({ group, counts }) {
+function CollapsedGroupItem({ group: fullGroup, counts, role }) {
   const location = useLocation()
+  const group = { ...fullGroup, items: visibleItems(fullGroup.items, role) }
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({})
   const triggerRef = useRef(null)
@@ -195,7 +197,7 @@ function CollapsedGroupItem({ group, counts }) {
 }
 
 // Expanded sidebar: individual items with accordion for children
-function NavItem({ item, counts }) {
+function NavItem({ item, counts, role }) {
   const location = useLocation()
   const [open, setOpen] = useState(() => {
     if (!item.children) return false
@@ -225,6 +227,7 @@ function NavItem({ item, counts }) {
   }
 
   const anyChildActive = item.children.some(c => isPathActive(c.path, location.pathname))
+  const childWaiting = item.children.reduce((n, c) => n + (c.badge ? counts[c.badge] ?? 0 : 0), 0)
 
   return (
     <div>
@@ -239,6 +242,7 @@ function NavItem({ item, counts }) {
       >
         <Icon size={18} className="shrink-0" />
         <span className="flex-1 text-start">{item.label}</span>
+        {!open && <CountBadge n={childWaiting} />}
         <ChevronDown
           size={15}
           className={clsx(
@@ -250,7 +254,9 @@ function NavItem({ item, counts }) {
 
       {open && (
         <div className="mt-1 ms-4 ps-3 border-s border-slate-200 dark:border-slate-700 space-y-0.5">
-          {item.children.map(child => {
+          {item.children
+            .filter(child => !child.roles || child.roles.includes(role))
+            .map(child => {
             const ChildIcon = child.icon
             return (
               <NavLink
@@ -323,7 +329,7 @@ export default function Sidebar({ mobileOpen, onMobileClose, collapsed = false }
             /* Collapsed: group icons with flyout */
             <div className="space-y-1">
               {visibleGroups.map(group => (
-                <CollapsedGroupItem key={group.group} group={group} counts={counts} />
+                <CollapsedGroupItem key={group.group} group={group} counts={counts} role={role} />
               ))}
             </div>
           ) : (
@@ -334,17 +340,19 @@ export default function Sidebar({ mobileOpen, onMobileClose, collapsed = false }
                   {group.group}
                 </div>
                 <div className="space-y-0.5">
-                  {group.items
-                    .filter(item => !item.roles || item.roles.includes(role))
+                  {visibleItems(group.items, role)
                     .map(item => (
-                      <NavItem key={item.path || item.label} item={item} counts={counts} />
+                      <NavItem key={item.path || item.label} item={item} counts={counts} role={role} />
                     ))}
                 </div>
               </div>
             ))
           )}
+          {!rail && <QuickAccess />}
           {!rail && <SidebarTags />}
         </nav>
+
+        {!rail && <StorageMeter />}
 
         {/* Bottom user info */}
         <div className="p-3 border-t border-gray-200 dark:border-gray-800">

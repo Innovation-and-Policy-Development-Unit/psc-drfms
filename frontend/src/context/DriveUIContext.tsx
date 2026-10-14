@@ -9,7 +9,7 @@ import {
   type RefObject,
 } from 'react'
 
-export type DriveViewMode = 'list' | 'grid'
+export type DriveViewMode = 'list' | 'compact' | 'grid'
 
 interface DriveUIContextValue {
   sidebarCollapsed: boolean
@@ -43,10 +43,10 @@ export function DriveUIProvider({ children }: { children: ReactNode }) {
     localStorage.getItem(SIDEBAR_KEY) === '1',
   )
   const [viewMode, setViewModeState] = useState<DriveViewMode>(() =>
-    (localStorage.getItem(VIEW_KEY) as DriveViewMode) || 'list',
+    (['list', 'compact', 'grid'].includes(localStorage.getItem(VIEW_KEY) ?? '') ? localStorage.getItem(VIEW_KEY) : 'list') as DriveViewMode,
   )
   const [infoPaneOpen, setInfoPaneOpenState] = useState(() =>
-    localStorage.getItem(INFO_PANE_KEY) !== '0',
+    localStorage.getItem(INFO_PANE_KEY) === '1',
   )
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [statusMessage, setStatusMessage] = useState('')

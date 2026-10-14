@@ -55,6 +55,10 @@ export interface RecordListItem {
   isStarred?: boolean
   createdAt: string
   updatedAt: string
+  retentionDate?: string | null
+  /** First lines of the AI summary, for tile previews. */
+  summaryPreview?: string
+  isShared?: boolean
   matchSnippet?: string
   matchedBy?: "keyword" | "meaning" | "both" | null
   rank?: number
@@ -345,4 +349,6 @@ export interface RecordPermission {
 export interface BreadcrumbItem {
   label: string
   to?: string
+  /** Other places at this level; the crumb becomes a dropdown for jumping between them. */
+  siblings?: Array<{ label: string; to: string; current?: boolean }>
 }
