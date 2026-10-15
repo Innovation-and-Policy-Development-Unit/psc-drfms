@@ -38,6 +38,7 @@ A web-based electronic records management system (ERMS) built for the Public Ser
 8. [Project structure](#8-project-structure)
 9. [Testing](#9-testing)
 10. [Operations notes](#10-operations-notes)
+11. [Known gaps and roadmap](#11-known-gaps-and-roadmap)
 
 ---
 
@@ -246,7 +247,7 @@ AI is **off by default** (`LLM_PROVIDER=none`) and every feature is a *suggestio
 - **Internal sharing** through document permissions (see 4.5) and the **Shared with me** page.
 - **Public share links** for people without an account: random 256-bit token, optional **password**, **expiry date**, option to **allow or block download**, optional recipient name and email, pinned to a specific version if wanted.
 - **Link management** page (`/sharing`): see every link, how many times each was opened, and **revoke** at any time.
-- **Access logging:** each open of a shared link is recorded (`SharedLinkAccess`) and also written to the audit log.
+- **Access logging:** each open of a shared link is recorded in its own access table (`SharedLinkAccess`). It is not yet written to the main audit log.
 - Recipients view the document at `/shared/<token>`.
 
 ### 4.12 Compliance, retention and disposition
@@ -256,7 +257,7 @@ AI is **off by default** (`LLM_PROVIDER=none`) and every feature is a *suggestio
 - **Disposition review:** each flagged record carries a proposed action (destroy, archive, review, or transfer to the National Archives); an authorised user approves or dismisses it, and the decision and decider are recorded. Only one review can be pending per record.
 - **Overdue records** report: everything past its retention date.
 - **Legal holds:** freeze records (or whole series) for a disciplinary proceeding, commission inquiry, litigation, audit or other reason. A record on hold cannot be disposed of; lifting a hold re-evaluates whether any other active hold still applies.
-- **Destruction scheduling and certificates:** destruction is a two-person process. One user authorises, another approves; on completion a **destruction certificate** with a number and PDF is produced and records are linked to it. Records are only ever erased through this process.
+- **Destruction scheduling and certificates:** a destruction certificate (with a certificate number, method and notes) is created by one user and approved or rejected by a user with the right role. **Current limits:** the code does not yet stop the same person creating and approving, does not audit the approve/reject step, and does not yet execute the destruction or generate the certificate PDF. See [Known gaps](#11-known-gaps-and-roadmap).
 - **Compliance dashboard** summarising holds, overdue records, pending reviews and upcoming destructions.
 
 ### 4.13 Recycle bin
@@ -279,7 +280,7 @@ AI is **off by default** (`LLM_PROVIDER=none`) and every feature is a *suggestio
 
 ### 4.16 Audit trail and chain of custody
 
-- **Immutable audit log** of every meaningful action: view, create, update, delete, download, upload version, approve, reject, share, shared-link access, legal hold, and more, with user, IP address, time and details.
+- **Audit log** of meaningful actions (each view calls the logger explicitly; the table is not yet append-only or hash-chained): view, create, update, delete, download, upload version, approve, reject, share, shared-link access, legal hold, and more, with user, IP address, time and details.
 - **Audit trail page** (`/analytics/audit`) with filters, and a per-record **audit tab**.
 - **Chain of custody** per record: a chronological custody record of who held or handled it.
 - Audit middleware captures request context automatically.
@@ -332,13 +333,13 @@ Scheduled backups of the database and every stored file to a Windows/Samba (**SM
 - **Security headers** from nginx: strict Content-Security-Policy, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
 - **Input safety:** advanced-search fields and operators are allow-listed; AI output is validated; OnlyOffice and shared links use unguessable tokens.
 - **Audit logging** of sensitive actions (see 4.16).
-- **Tamper-evident proofs** for workflow decisions and integrity checks on file versions.
+- **Tamper-evident proofs** for workflow decisions and on-demand integrity checks on file versions.
 
 ### 4.22 User interface
 
 - **Light, dark and system themes**, selectable theme presets, density (compact / comfortable) and corner-radius options.
 - **Per-user appearance** with an **organisation default** that an administrator can lock.
-- **Three languages:** English, French and Bislama (language auto-detected, switchable in settings).
+- **Three language files:** English, French and Bislama, auto-detected and switchable in settings. Only part of the interface is translated so far; the rest is English.
 - **Responsive layout** with a collapsible sidebar, horizontal menu and settings panel.
 - **Accessible components**, skeleton loaders, empty states, confirm popovers and an error boundary.
 - **Resizable columns** that remember their width.
@@ -474,3 +475,26 @@ npm run build
 - **First OnlyOffice start** can take two minutes or more; the health check allows for it.
 - **Email** uses SMTP settings from the environment; use a console backend in development.
 - **Production checklist:** change every default secret and password, set `DEBUG=False`, restrict `ALLOWED_HOSTS`, serve over HTTPS, and run `collectstatic` and migrations as part of deployment.
+- **The bundled `docker-compose.yml` is a development setup:** development settings, `DEBUG=True`, auto-reload, published database/Redis/MinIO ports, default credentials. There is no production settings module yet.
+
+---
+
+## 11. Known gaps and roadmap
+
+Found in a code review against records-management and security standards (ISO 15489, MoReq2010, OWASP ASVS, WCAG 2.2). They are listed here so the documented features above are not mistaken for finished controls.
+
+**Records management**
+- Destruction: no enforced separation between who creates and who approves, no audit of approve/reject, no execution step, no certificate PDF. The deleted-to-bin flag (`destroyed_at`) is also used for destruction, so the two states are not distinguished.
+- Audit log is not append-only or hash-chained, and its user and record links are cleared if the user or record is deleted.
+- Retention is a number of years plus a note; event-based triggers, schedule versioning and a controlled "declare as record" lock are not implemented.
+- No scheduled fixity (checksum) sweep; integrity is checked only on demand per version.
+
+**Security and operations**
+- Production settings, secret/default checks, upload validation and malware scanning, and CI are not yet in place.
+- Access and refresh tokens are kept in browser `localStorage`; WebSocket tokens travel in the query string.
+- Client IP handling behind nginx can be spoofed, which affects audit IPs and throttling.
+- Administrators can read up to Secret with no separate "system administrator" role.
+
+**Declared but not implemented:** digital signatures (`pyhanko`), SAML single sign-on, email-to-record (IMAP), and the `django-haystack` and `django-ratelimit` packages are installed or configured but unused.
+
+**Interface:** translations and an accessibility audit are incomplete; there are no frontend tests.
