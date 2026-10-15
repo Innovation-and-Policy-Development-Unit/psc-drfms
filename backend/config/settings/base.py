@@ -248,6 +248,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.compliance.tasks.scan_retention_due',
         'schedule': crontab(hour=2, minute=0),
     },
+    # Carries out approved destruction certificates that have not run yet (queue was down, or a hold lifted).
+    'destruction-execute-approved': {
+        'task': 'apps.compliance.tasks.execute_approved_destructions',
+        'schedule': crontab(hour=3, minute=0),
+    },
     # Checks the administrator's backup schedule hourly; starts a run only when it is due.
     'backup-schedule-check': {
         'task': 'apps.backups.tasks.run_scheduled_backup',

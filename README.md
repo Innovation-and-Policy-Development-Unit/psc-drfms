@@ -247,7 +247,7 @@ AI is **off by default** (`LLM_PROVIDER=none`) and every feature is a *suggestio
 - **Internal sharing** through document permissions (see 4.5) and the **Shared with me** page.
 - **Public share links** for people without an account: random 256-bit token, optional **password**, **expiry date**, option to **allow or block download**, optional recipient name and email, pinned to a specific version if wanted.
 - **Link management** page (`/sharing`): see every link, how many times each was opened, and **revoke** at any time.
-- **Access logging:** each open of a shared link is recorded in its own access table (`SharedLinkAccess`). It is not yet written to the main audit log.
+- **Access logging:** each open of a shared link is recorded in its own access table (`SharedLinkAccess`) **and** in the main audit log (`share_access`, against the record, identifying the link by id, never by its token).
 - Recipients view the document at `/shared/<token>`.
 
 ### 4.12 Compliance, retention and disposition
@@ -257,7 +257,12 @@ AI is **off by default** (`LLM_PROVIDER=none`) and every feature is a *suggestio
 - **Disposition review:** each flagged record carries a proposed action (destroy, archive, review, or transfer to the National Archives); an authorised user approves or dismisses it, and the decision and decider are recorded. Only one review can be pending per record.
 - **Overdue records** report: everything past its retention date.
 - **Legal holds:** freeze records (or whole series) for a disciplinary proceeding, commission inquiry, litigation, audit or other reason. A record on hold cannot be disposed of; lifting a hold re-evaluates whether any other active hold still applies.
-- **Destruction scheduling and certificates:** a destruction certificate (with a certificate number, method and notes) is created by one user and approved or rejected by a user with the right role. **Current limits:** the code does not yet stop the same person creating and approving, does not audit the approve/reject step, and does not yet execute the destruction or generate the certificate PDF. See [Known gaps](#11-known-gaps-and-roadmap).
+- **Destruction scheduling and certificates:** destruction is a controlled, two-person process.
+  1. A record can only be put on a certificate if it has an **approved disposition review for destruction** and is not under legal hold, not vital, not in an open workflow, not in the Recycle bin and not already on another certificate. The requester names the records when asking.
+  2. A **different** Director/Commissioner/Administrator must approve. The API refuses the requester (HTTP 403) and the database enforces it with a check constraint. Approval and rejection are written to the audit log against each record; rejection records who rejected and releases the records.
+  3. Approval queues the **execution job** (a daily sweep also retries). It refuses to run, leaving the certificate approved and logging why, if any record has since come under legal hold, entered a workflow or been binned.
+  4. Execution erases every stored file, attachment, thumbnail and QR code, OCR/AI text, the search vector, the semantic-search passages (embeddings) and comment text, switches off shared links, and keeps only a **metadata stub** (reference, title, classification, series, dates, version file names, sizes and SHA-256 hashes) plus the audit trail. It writes a `destroy` audit entry per record, produces the **certificate PDF**, and sets the certificate to *completed*.
+  Destroyed records are hidden everywhere, are not in the Recycle bin and cannot be restored (`Record.erased_at` marks them; `destroyed_at` alone means a Recycle-bin record). Backups taken before execution still contain the content until they expire.
 - **Compliance dashboard** summarising holds, overdue records, pending reviews and upcoming destructions.
 
 ### 4.13 Recycle bin
@@ -280,7 +285,10 @@ AI is **off by default** (`LLM_PROVIDER=none`) and every feature is a *suggestio
 
 ### 4.16 Audit trail and chain of custody
 
-- **Audit log** of meaningful actions (each view calls the logger explicitly; the table is not yet append-only or hash-chained): view, create, update, delete, download, upload version, approve, reject, share, shared-link access, legal hold, and more, with user, IP address, time and details.
+- **Append-only, hash-chained audit log** of meaningful actions (each view calls the logger explicitly): view, create, update, delete, download, upload version, approve, reject, share, shared-link access, legal hold, destroy, and more, with user, IP address, time and details.
+  - A database trigger rejects any UPDATE or DELETE of an entry, except clearing the user/record link when that user or record is later erased; the entry keeps the user's e-mail and name and the record's reference as text, so it still says who did what.
+  - Each entry stores the SHA-256 of its content and of the entry before it. `python manage.py verify_audit_chain` walks the chain and names the first altered or missing entry. Rows written before the chain existed were chained when the migration ran.
+  - The Django admin shows the log read-only.
 - **Audit trail page** (`/analytics/audit`) with filters, and a per-record **audit tab**.
 - **Chain of custody** per record: a chronological custody record of who held or handled it.
 - Audit middleware captures request context automatically.
@@ -394,6 +402,8 @@ All endpoints are under `/api/` and return camelCase JSON. Interactive documenta
 | Job | Schedule | Purpose |
 |---|---|---|
 | `scan_retention_due` | Daily 02:00 | Flag records due for disposition review |
+| `execute_approved_destructions` | Daily 03:00 | Carry out approved destruction certificates that have not run (queue was down, or a hold was lifted) |
+| `execute_destruction_certificate` | On approval | Erase the records on one approved certificate and produce its PDF |
 | `run_scheduled_backup` | Hourly at :05 | Start a backup if the administrator's schedule says one is due |
 | `process_record_ocr` | On upload | OCR, text extraction, vision fallback |
 | `update_record_search_vector` | On change | Refresh full-text index |
@@ -403,7 +413,7 @@ All endpoints are under `/api/` and return camelCase JSON. Interactive documenta
 | `ai_tag_record` / AI analysis | On upload (if AI enabled) | Suggest metadata |
 | Embedding jobs | On upload / change | Index passages for semantic search |
 
-Management commands: `seed_system`, `scan_retention`, `index_attachments`, `embed_records`, `ai_backfill`, `decrypt_backup`.
+Management commands: `verify_audit_chain`, `seed_system`, `scan_retention`, `index_attachments`, `embed_records`, `ai_backfill`, `decrypt_backup`.
 
 ---
 
@@ -484,8 +494,8 @@ npm run build
 Found in a code review against records-management and security standards (ISO 15489, MoReq2010, OWASP ASVS, WCAG 2.2). They are listed here so the documented features above are not mistaken for finished controls.
 
 **Records management**
-- Destruction: no enforced separation between who creates and who approves, no audit of approve/reject, no execution step, no certificate PDF. The deleted-to-bin flag (`destroyed_at`) is also used for destruction, so the two states are not distinguished.
-- Audit log is not append-only or hash-chained, and its user and record links are cleared if the user or record is deleted.
+- Destruction: vital records cannot be destroyed at all (no extra-approval path yet); the requester's access to each record is not re-checked; backups made before destruction are not purged.
+- Audit log: the chain is checked on demand (no scheduled check, external anchor or external log sink yet), and entries are written explicitly per view rather than captured centrally. Writes are serialised by a database lock, which is fine at this scale but is a throughput limit.
 - Retention is a number of years plus a note; event-based triggers, schedule versioning and a controlled "declare as record" lock are not implemented.
 - No scheduled fixity (checksum) sweep; integrity is checked only on demand per version.
 

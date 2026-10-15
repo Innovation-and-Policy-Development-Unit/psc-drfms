@@ -5,6 +5,8 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.models import AuditAction
+from apps.audit.utils import log_action
 from apps.records.authorization import ensure_record_access
 from .models import SharedLink, SharedLinkAccess
 from .serializers import SharedLinkSerializer
@@ -55,12 +57,20 @@ def _check_link_password(link, request):
     return None
 
 
-def _log_access(link, request):
+def _log_access(link, request, via='view'):
     ip = request.META.get('REMOTE_ADDR')
     ua = request.META.get('HTTP_USER_AGENT', '')[:500]
     SharedLinkAccess.objects.create(shared_link=link, ip_address=ip, user_agent=ua)
     link.access_count += 1
     link.save(update_fields=['access_count'])
+    # Also into the main audit trail, so the record's history shows outside access.
+    # The token is a credential, so the link is identified by its id.
+    log_action(request, AuditAction.SHARE_ACCESS, link.record, extra={
+        'link_id': str(link.id),
+        'via': via,
+        'recipient': link.recipient_email or link.recipient_name or '',
+        'password_protected': bool(link.password),
+    })
 
 
 class SharedDocumentView(APIView):
@@ -113,7 +123,7 @@ class SharedDocumentDownloadView(APIView):
         if not version:
             return Response({'detail': 'No file is attached to this record.'}, status=404)
 
-        _log_access(link, request)
+        _log_access(link, request, via='download')
 
         response = FileResponse(
             version.file.open('rb'),

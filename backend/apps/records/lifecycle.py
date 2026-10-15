@@ -80,12 +80,12 @@ def build_lifecycle(record) -> dict:
         stations.append(_station('retention', 'Retention', 'pending', detail))
 
     # 5 — Disposition
-    if record.destroyed_at:
+    if record.erased_at:
         cert = record.destruction_certificate
         stations.append(_station(
             'disposition', 'Disposed', 'complete',
             f'Certificate {cert.certificate_number}' if cert else 'Destroyed',
-            record.destroyed_at,
+            record.erased_at,
         ))
     elif record.is_on_legal_hold:
         stations.append(_station('disposition', 'Disposition', 'blocked', 'On legal hold — disposition frozen'))

@@ -5,6 +5,7 @@ records the viewer cannot see.
 Run:  python manage.py test tests.test_dashboard_activity --settings=config.settings.development
 """
 from datetime import timedelta
+from unittest import mock
 
 from django.test import TestCase
 from django.utils import timezone
@@ -39,10 +40,10 @@ def add_version(record, user, when=None):
 
 
 def log(user, action, record, when=None):
-    entry = AuditLog.objects.create(user=user, action=action, record=record, record_reference=record.reference_number)
-    if when:
-        AuditLog.objects.filter(pk=entry.pk).update(timestamp=when)
-    return entry
+    # Audit rows cannot be edited afterwards, so the time is fixed while the row is written
+    with mock.patch('apps.audit.models.timezone.now', return_value=when or timezone.now()):
+        return AuditLog.objects.create(
+            user=user, action=action, record=record, record_reference=record.reference_number)
 
 
 class ActivityTests(TestCase):

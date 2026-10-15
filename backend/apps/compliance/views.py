@@ -1,13 +1,22 @@
+import logging
+
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
+
+from apps.audit.models import AuditAction
+from apps.audit.utils import log_action
 from .models import LegalHold, DestructionCertificate, RetentionSchedule, DispositionReview
 from .serializers import (
     LegalHoldSerializer, DestructionCertificateSerializer, RetentionScheduleSerializer,
     DispositionReviewSerializer,
 )
 from apps.accounts.permissions import IsRecordsOfficerOrAbove, IsDirectorOrAbove, IsAdministrator
+
+logger = logging.getLogger(__name__)
 
 
 class LegalHoldListView(generics.ListCreateAPIView):
@@ -39,7 +48,7 @@ class LegalHoldLiftView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDirectorOrAbove]
 
     def post(self, request, pk):
-        hold = LegalHold.objects.get(pk=pk)
+        hold = get_object_or_404(LegalHold, pk=pk)
         if not hold.is_active:
             return Response({'detail': 'Hold is already lifted.'}, status=400)
         hold.lift(request.user)
@@ -65,19 +74,57 @@ class DestructionApproveView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDirectorOrAbove]
 
     def post(self, request, pk):
-        cert = DestructionCertificate.objects.get(pk=pk)
         action = request.data.get('action', 'approve')
-        if action == 'approve':
-            cert.status = 'approved'
-            cert.approved_by = request.user
-            cert.approved_at = timezone.now()
-            cert.save(update_fields=['status', 'approved_by', 'approved_at'])
-            return Response({'detail': 'Destruction approved.'})
-        elif action == 'reject':
-            cert.status = 'rejected'
-            cert.save(update_fields=['status'])
-            return Response({'detail': 'Destruction rejected.'})
-        return Response({'detail': 'Invalid action.'}, status=400)
+        if action not in ('approve', 'reject'):
+            return Response({'detail': 'Action must be "approve" or "reject".'}, status=400)
+
+        with transaction.atomic():
+            cert = get_object_or_404(DestructionCertificate.objects.select_for_update(), pk=pk)
+            if cert.status != 'pending':
+                return Response({'detail': f'This certificate is already {cert.status}.'}, status=400)
+            records = list(cert.destroyed_records.all())
+
+            if action == 'approve':
+                # Separation of duties: the person who requested the destruction cannot approve it
+                if cert.authorised_by_id == request.user.id:
+                    return Response(
+                        {'detail': 'A different person must approve this destruction: you requested it.'},
+                        status=403,
+                    )
+                cert.status = 'approved'
+                cert.approved_by = request.user
+                cert.approved_at = timezone.now()
+                cert.save(update_fields=['status', 'approved_by', 'approved_at'])
+                event, audit_action, message = 'destruction_approved', AuditAction.APPROVE, 'Destruction approved.'
+            else:
+                cert.status = 'rejected'
+                cert.rejected_by = request.user
+                cert.rejected_at = timezone.now()
+                cert.save(update_fields=['status', 'rejected_by', 'rejected_at'])
+                # The records are released and may be put on a new certificate
+                cert.destroyed_records.update(destruction_certificate=None)
+                event, audit_action, message = 'destruction_rejected', AuditAction.REJECT, 'Destruction rejected.'
+
+            extra = {
+                'event': event, 'certificate': cert.certificate_number,
+                'authorised_by': cert.authorised_by.email if cert.authorised_by else '',
+                'notes': str(request.data.get('notes', ''))[:500],
+            }
+            for record in records:
+                log_action(request, audit_action, record, extra=extra)
+            if not records:
+                log_action(request, audit_action, None, extra=extra)
+
+            if action == 'approve':
+                # Carried out in the background; the daily sweep picks it up if this cannot be queued
+                def queue():
+                    try:
+                        from .tasks import execute_destruction_certificate
+                        execute_destruction_certificate.delay(str(cert.id))
+                    except Exception:
+                        logger.exception('Could not queue destruction of %s', cert.certificate_number)
+                transaction.on_commit(queue)
+        return Response({'detail': message})
 
 
 class RetentionScheduleListView(generics.ListCreateAPIView):
@@ -104,7 +151,7 @@ class DispositionReviewDecideView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsDirectorOrAbove]
 
     def post(self, request, pk):
-        review = DispositionReview.objects.select_related('record').get(pk=pk)
+        review = get_object_or_404(DispositionReview.objects.select_related('record'), pk=pk)
         if review.status != 'pending':
             return Response({'detail': 'Review has already been decided.'}, status=400)
         action = request.data.get('action')

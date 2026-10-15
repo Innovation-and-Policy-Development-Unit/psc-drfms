@@ -54,11 +54,21 @@ class DestructionCertificate(models.Model):
     ], default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='rejected_destructions')
+    rejected_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     pdf_file = models.FileField(upload_to='destruction_certificates/', null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            # Separation of duties, enforced by the database as well as the API: whoever
+            # authorised a destruction cannot be the person who approves it.
+            models.CheckConstraint(
+                check=~models.Q(approved_by=models.F('authorised_by')),
+                name='destruction_approver_not_authoriser',
+            ),
+        ]
 
     def __str__(self):
         return self.certificate_number

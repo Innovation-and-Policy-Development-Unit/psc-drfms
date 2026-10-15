@@ -17,6 +17,17 @@ def log_action(request, action, record=None, extra=None):
     )
 
 
+def log_system_action(action, record=None, user=None, extra=None):
+    """Audit an action that happened outside a web request (a scheduled job, for example)."""
+    AuditLog.objects.create(
+        user=user,
+        action=action,
+        record=record,
+        record_reference=record.reference_number if record else '',
+        extra=extra or {},
+    )
+
+
 def _get_client_ip(request):
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:

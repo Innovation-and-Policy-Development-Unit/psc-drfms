@@ -122,12 +122,23 @@ class DestructionCertificateTests(TestCase):
         self.director_client = auth_client(self.director)
 
     def test_officer_can_create_certificate(self):
+        from apps.compliance.models import DispositionReview
+        record = make_record(self.officer)
+        DispositionReview.objects.create(
+            record=record, retention_date=date(2020, 1, 1), proposed_action='destroy', status='approved')
         resp = self.officer_client.post('/api/compliance/destruction/', {
             'destruction_method': 'Secure digital deletion',
             'notes': 'Retention period expired',
-        })
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+            'records': [str(record.pk)],
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
         self.assertTrue(resp.data['certificate_number'].startswith('DC-'))
+
+    def test_certificate_without_records_is_refused(self):
+        resp = self.officer_client.post('/api/compliance/destruction/', {
+            'destruction_method': 'Secure digital deletion',
+        }, format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_certificate_number_auto_generated(self):
         cert = DestructionCertificate.objects.create(

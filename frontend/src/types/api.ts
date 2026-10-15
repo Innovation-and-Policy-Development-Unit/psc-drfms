@@ -143,12 +143,17 @@ export interface DestructionCertificate {
   status: 'pending' | 'approved' | 'rejected' | 'completed'
   destructionMethod: string
   notes: string
+  authorisedBy?: number | null
   authorisedByName?: string
   approvedByName?: string
+  rejectedByName?: string
+  rejectedAt?: string | null
   createdAt: string
   approvedAt?: string | null
   completedAt?: string | null
+  pdfFile?: string | null
   destroyedRecordsCount: number
+  recordRefs?: string[]
 }
 
 export interface RetentionSchedule {

@@ -77,7 +77,12 @@ class Record(models.Model):
     # Lifecycle
     retention_date = models.DateField(null=True, blank=True)
     scheduled_destruction_date = models.DateField(null=True, blank=True)
+    # "Hidden everywhere" marker. Set both for a record in the Recycle bin (deleted_at also set, recoverable)
+    # and for one destroyed under a destruction certificate (erased_at also set, NOT recoverable).
     destroyed_at = models.DateTimeField(null=True, blank=True)
+    # Set only when an approved destruction certificate has been carried out: the files and every derived
+    # copy of the content are gone and only this metadata stub (and the audit trail) remains.
+    erased_at = models.DateTimeField(null=True, blank=True)
     # Recycle bin: set together with destroyed_at (which hides the record everywhere). Restoring clears all three.
     # A deleted record is only erased through the destruction-certificate process, never from the bin.
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)

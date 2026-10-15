@@ -115,3 +115,22 @@ def scan_retention_due():
         backfilled, len(flagged),
     )
     return {'backfilled': backfilled, 'flagged': len(flagged)}
+
+
+@shared_task
+def execute_destruction_certificate(certificate_id):
+    """Carry out one approved destruction certificate (see ``destruction.execute_destruction``)."""
+    from .destruction import execute_destruction
+
+    outcome, detail = execute_destruction(certificate_id)
+    logger.info('Destruction %s: %s (%s)', certificate_id, outcome, detail)
+    return outcome
+
+
+@shared_task
+def execute_approved_destructions():
+    """Daily sweep: run any approved certificate that has not been carried out (queue was down, or it was blocked)."""
+    from .models import DestructionCertificate
+
+    ids = list(DestructionCertificate.objects.filter(status='approved').values_list('id', flat=True))
+    return {str(pk): execute_destruction_certificate(str(pk)) for pk in ids}
